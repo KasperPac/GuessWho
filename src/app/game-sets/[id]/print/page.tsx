@@ -85,10 +85,10 @@ export default async function PrintPage({
         {slots.map((char, i) => (
           <div key={char?.id ?? `empty-${i}`} className="card">
             <div className="card-image">
-              {char?.generatedImageUrl || char?.referenceImageUrl ? (
+              {char?.generatedImageUrl || char?.referenceImageUrls[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={char.generatedImageUrl ?? char.referenceImageUrl!}
+                  src={char.generatedImageUrl ?? char.referenceImageUrls[0]}
                   alt={char.displayName}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
