@@ -145,18 +145,14 @@ export default function GameSetEditorPage({
     return generatedImageUrl;
   }
 
-  async function handleGenerateAll() {
-    if (!gameSet) return;
-    const eligible = characters.filter((c) => c.referenceImageUrls.length > 0);
-    if (eligible.length === 0) return;
-
+  async function runGenerationLoop(chars: Character[]) {
     setIsGeneratingAll(true);
-    setGenerateAllProgress({ done: 0, total: eligible.length, failed: 0, failedIds: [] });
+    setGenerateAllProgress({ done: 0, total: chars.length, failed: 0, failedIds: [] });
 
     let failed = 0;
     const failedIds: string[] = [];
 
-    for (const char of eligible) {
+    for (const char of chars) {
       setGeneratingCharId(char.id);
       try {
         const url = await generateSingle(char);
@@ -169,7 +165,7 @@ export default function GameSetEditorPage({
       }
       setGenerateAllProgress((prev) => ({
         done: (prev?.done ?? 0) + 1,
-        total: eligible.length,
+        total: chars.length,
         failed,
         failedIds: [...failedIds],
       }));
@@ -179,40 +175,20 @@ export default function GameSetEditorPage({
     setIsGeneratingAll(false);
   }
 
+  async function handleGenerateAll() {
+    if (!gameSet) return;
+    const eligible = characters.filter((c) => c.referenceImageUrls.length > 0);
+    if (eligible.length === 0) return;
+    await runGenerationLoop(eligible);
+  }
+
   async function handleRetryFailed() {
     if (!generateAllProgress || !gameSet) return;
     const toRetry = characters.filter((c) =>
       generateAllProgress.failedIds.includes(c.id)
     );
     if (toRetry.length === 0) return;
-
-    setIsGeneratingAll(true);
-    setGenerateAllProgress({ done: 0, total: toRetry.length, failed: 0, failedIds: [] });
-
-    let failed = 0;
-    const failedIds: string[] = [];
-
-    for (const char of toRetry) {
-      setGeneratingCharId(char.id);
-      try {
-        const url = await generateSingle(char);
-        setCharacters((prev) =>
-          prev.map((c) => (c.id === char.id ? { ...c, generatedImageUrl: url } : c))
-        );
-      } catch {
-        failed++;
-        failedIds.push(char.id);
-      }
-      setGenerateAllProgress((prev) => ({
-        done: (prev?.done ?? 0) + 1,
-        total: toRetry.length,
-        failed,
-        failedIds: [...failedIds],
-      }));
-    }
-
-    setGeneratingCharId(null);
-    setIsGeneratingAll(false);
+    await runGenerationLoop(toRetry);
   }
 
   if (loading) return <p className="text-gray-500">Loading…</p>;
