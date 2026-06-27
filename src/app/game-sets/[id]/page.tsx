@@ -7,16 +7,26 @@ import {
   listCharacters,
   createCharacter,
   updateCharacter,
+  updateGameSet,
   deleteCharacter,
   saveBalanceReport,
 } from "@/lib/supabase/db";
 import { evaluateDeck } from "@/lib/game-engine/balance";
 import { generateCharacterPrompt } from "@/lib/game-engine/prompts";
-import type { GameSet, Character, CharacterAttributes } from "@/types/game";
-import { GAMEPLAY_TRAITS } from "@/lib/game-engine/attributes";
+import type { GameSet, Character, CharacterAttributes, ImageStyle } from "@/types/game";
+import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import CharacterCard from "@/components/game-sets/CharacterCard";
 import CharacterEditor from "@/components/game-sets/CharacterEditor";
 import BalanceScoreBadge from "@/components/game-sets/BalanceScoreBadge";
+
+const ALL_IMAGE_STYLES = Object.keys(IMAGE_STYLE_CONFIGS) as ImageStyle[];
+
+type GenerateAllProgress = {
+  done: number;
+  total: number;
+  failed: number;
+  failedIds: string[];
+};
 
 export default function GameSetEditorPage({
   params,
@@ -30,6 +40,9 @@ export default function GameSetEditorPage({
   const [loading, setLoading] = useState(true);
   const [balanceScore, setBalanceScore] = useState<number | null>(null);
   const [isPlayable, setIsPlayable] = useState<boolean | null>(null);
+  const [generatingCharId, setGeneratingCharId] = useState<string | null>(null);
+  const [generateAllProgress, setGenerateAllProgress] = useState<GenerateAllProgress | null>(null);
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
   async function load() {
     const [set, chars] = await Promise.all([getGameSet(id), listCharacters(id)]);
@@ -45,6 +58,12 @@ export default function GameSetEditorPage({
     const report = evaluateDeck(chars);
     setBalanceScore(report.score);
     setIsPlayable(report.isPlayable);
+  }
+
+  async function handleStyleChange(style: ImageStyle) {
+    if (!gameSet) return;
+    const updated = await updateGameSet(id, { imageStyle: style });
+    setGameSet(updated);
   }
 
   async function handleAddCharacter() {
@@ -80,7 +99,6 @@ export default function GameSetEditorPage({
     if (!gameSet) return;
     const updatedChar = await updateCharacter(charId, updates);
 
-    // Generate and save prompt
     const prompt = generateCharacterPrompt(
       { ...updatedChar, ...updates } as Character,
       gameSet
@@ -98,6 +116,12 @@ export default function GameSetEditorPage({
     await saveBalanceReport(id, report);
   }
 
+  function handleGenerateSuccess(charId: string, generatedImageUrl: string) {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === charId ? { ...c, generatedImageUrl } : c))
+    );
+  }
+
   async function handleDeleteCharacter(charId: string) {
     await deleteCharacter(charId);
     const updated = characters.filter((c) => c.id !== charId);
@@ -106,10 +130,96 @@ export default function GameSetEditorPage({
     runBalance(updated);
   }
 
+  async function generateSingle(char: Character): Promise<string> {
+    if (!gameSet) throw new Error("No game set");
+    const res = await fetch(`/api/characters/${char.id}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameSetId: id, imageStyle: gameSet.imageStyle }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Unknown" }));
+      throw new Error(error ?? `HTTP ${res.status}`);
+    }
+    const { generatedImageUrl } = await res.json();
+    return generatedImageUrl;
+  }
+
+  async function handleGenerateAll() {
+    if (!gameSet) return;
+    const eligible = characters.filter((c) => c.referenceImageUrls.length > 0);
+    if (eligible.length === 0) return;
+
+    setIsGeneratingAll(true);
+    setGenerateAllProgress({ done: 0, total: eligible.length, failed: 0, failedIds: [] });
+
+    let failed = 0;
+    const failedIds: string[] = [];
+
+    for (const char of eligible) {
+      setGeneratingCharId(char.id);
+      try {
+        const url = await generateSingle(char);
+        setCharacters((prev) =>
+          prev.map((c) => (c.id === char.id ? { ...c, generatedImageUrl: url } : c))
+        );
+      } catch {
+        failed++;
+        failedIds.push(char.id);
+      }
+      setGenerateAllProgress((prev) => ({
+        done: (prev?.done ?? 0) + 1,
+        total: eligible.length,
+        failed,
+        failedIds: [...failedIds],
+      }));
+    }
+
+    setGeneratingCharId(null);
+    setIsGeneratingAll(false);
+  }
+
+  async function handleRetryFailed() {
+    if (!generateAllProgress || !gameSet) return;
+    const toRetry = characters.filter((c) =>
+      generateAllProgress.failedIds.includes(c.id)
+    );
+    if (toRetry.length === 0) return;
+
+    setIsGeneratingAll(true);
+    setGenerateAllProgress({ done: 0, total: toRetry.length, failed: 0, failedIds: [] });
+
+    let failed = 0;
+    const failedIds: string[] = [];
+
+    for (const char of toRetry) {
+      setGeneratingCharId(char.id);
+      try {
+        const url = await generateSingle(char);
+        setCharacters((prev) =>
+          prev.map((c) => (c.id === char.id ? { ...c, generatedImageUrl: url } : c))
+        );
+      } catch {
+        failed++;
+        failedIds.push(char.id);
+      }
+      setGenerateAllProgress((prev) => ({
+        done: (prev?.done ?? 0) + 1,
+        total: toRetry.length,
+        failed,
+        failedIds: [...failedIds],
+      }));
+    }
+
+    setGeneratingCharId(null);
+    setIsGeneratingAll(false);
+  }
+
   if (loading) return <p className="text-gray-500">Loading…</p>;
   if (!gameSet) return <p className="text-red-400">Game set not found.</p>;
 
   const selectedChar = characters.find((c) => c.id === selectedId) ?? null;
+  const eligibleCount = characters.filter((c) => c.referenceImageUrls.length > 0).length;
 
   return (
     <div className="flex gap-6">
@@ -130,7 +240,7 @@ export default function GameSetEditorPage({
               {characters.length}/24 characters · Theme: {gameSet.theme.replace(/_/g, " ")}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Link
               href={`/game-sets/${id}/balance`}
               className="text-sm border border-gray-700 hover:border-gray-500 text-gray-300 px-3 py-1.5 rounded transition-colors"
@@ -146,6 +256,14 @@ export default function GameSetEditorPage({
                 Print View
               </Link>
             )}
+            {eligibleCount > 0 && !isGeneratingAll && (
+              <button
+                onClick={handleGenerateAll}
+                className="text-sm bg-violet-700 hover:bg-violet-600 text-white px-3 py-1.5 rounded transition-colors"
+              >
+                Generate All
+              </button>
+            )}
             {characters.length < 24 && (
               <button
                 onClick={handleAddCharacter}
@@ -157,12 +275,55 @@ export default function GameSetEditorPage({
           </div>
         </div>
 
+        {/* Image style picker */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {ALL_IMAGE_STYLES.map((style) => (
+            <button
+              key={style}
+              onClick={() => handleStyleChange(style)}
+              title={IMAGE_STYLE_CONFIGS[style].description}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                gameSet.imageStyle === style
+                  ? "bg-indigo-600 border-indigo-500 text-white"
+                  : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+              }`}
+            >
+              {IMAGE_STYLE_CONFIGS[style].label}
+            </button>
+          ))}
+        </div>
+
+        {/* Generate All progress */}
+        {generateAllProgress && (
+          <div className="mb-4 text-sm text-gray-400">
+            {isGeneratingAll ? (
+              <span>Generating {generateAllProgress.done} / {generateAllProgress.total}…</span>
+            ) : (
+              <span>
+                {generateAllProgress.done - generateAllProgress.failed} / {generateAllProgress.total} generated.
+                {generateAllProgress.failed > 0 && (
+                  <>
+                    {" "}{generateAllProgress.failed} failed.{" "}
+                    <button
+                      onClick={handleRetryFailed}
+                      className="text-indigo-400 underline hover:text-indigo-300"
+                    >
+                      Retry failed
+                    </button>
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-4 gap-3">
           {characters.map((char) => (
             <CharacterCard
               key={char.id}
               character={char}
               selected={char.id === selectedId}
+              isGenerating={generatingCharId === char.id}
               onClick={() => setSelectedId(char.id === selectedId ? null : char.id)}
             />
           ))}
@@ -188,6 +349,7 @@ export default function GameSetEditorPage({
             onSave={(updates) => handleSaveCharacter(selectedChar.id, updates)}
             onDelete={() => handleDeleteCharacter(selectedChar.id)}
             onClose={() => setSelectedId(null)}
+            onGenerateSuccess={(url) => handleGenerateSuccess(selectedChar.id, url)}
           />
         </div>
       )}
