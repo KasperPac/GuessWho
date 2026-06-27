@@ -88,7 +88,7 @@ export default async function PrintPage({
               {char?.generatedImageUrl || char?.referenceImageUrls[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={char.generatedImageUrl ?? char.referenceImageUrls[0]}
+                  src={char?.generatedImageUrl ?? char?.referenceImageUrls[0]}
                   alt={char.displayName}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
