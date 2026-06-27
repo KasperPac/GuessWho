@@ -6,7 +6,11 @@ import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import { GeminiImageProvider } from "@/lib/image-generation/GeminiImageProvider";
 import type { ImageStyle } from "@/types/game";
 
-const provider = new GeminiImageProvider(process.env.GOOGLE_AI_API_KEY!);
+const apiKey = process.env.GOOGLE_AI_API_KEY;
+if (!apiKey) {
+  throw new Error("GOOGLE_AI_API_KEY environment variable is not set");
+}
+const provider = new GeminiImageProvider(apiKey);
 
 async function callGemini(prompt: string, referenceImageUrls: string[]) {
   return provider.generateImage(prompt, referenceImageUrls);
@@ -40,6 +44,15 @@ export async function POST(
   }
 
   const { gameSetId, imageStyle } = body;
+
+  const VALID_IMAGE_STYLES = Object.keys(IMAGE_STYLE_CONFIGS) as ImageStyle[];
+
+  if (!gameSetId || typeof gameSetId !== "string") {
+    return NextResponse.json({ error: "Missing or invalid gameSetId" }, { status: 400 });
+  }
+  if (!imageStyle || !VALID_IMAGE_STYLES.includes(imageStyle)) {
+    return NextResponse.json({ error: "Missing or invalid imageStyle" }, { status: 400 });
+  }
 
   // 1. Fetch character
   const character = await getCharacter(charId);
@@ -101,7 +114,12 @@ export async function POST(
   const generatedImageUrl = urlData.publicUrl;
 
   // 8. Update character in DB
-  await updateCharacter(charId, { generatedImageUrl });
+  try {
+    await updateCharacter(charId, { generatedImageUrl });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "DB update failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   // 9. Return URL
   return NextResponse.json({ generatedImageUrl });
