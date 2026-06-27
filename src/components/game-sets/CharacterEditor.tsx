@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Character, CharacterAttributes, GameSet } from "@/types/game";
 import { generateCharacterPrompt } from "@/lib/game-engine/prompts";
 import {
@@ -8,19 +8,15 @@ import {
   GLASSES, HATS, EYE_COLORS, EXPRESSIONS, TOP_COLORS,
   OUTFIT_TYPES, ACCESSORIES,
 } from "@/lib/game-engine/attributes";
+import { supabase } from "@/lib/supabase/client";
+import { updateCharacter } from "@/lib/supabase/db";
 
 type Updates = Partial<Pick<Character, "displayName" | "attributes">>;
 
 const SELECT_CLASS =
   "w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500 capitalize";
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
@@ -32,24 +28,16 @@ function Field({
 }
 
 function AttrSelect<T extends string>({
-  value,
-  options,
-  onChange,
+  value, options, onChange,
 }: {
   value: T;
   options: readonly T[];
   onChange: (v: T) => void;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as T)}
-      className={SELECT_CLASS}
-    >
+    <select value={value} onChange={(e) => onChange(e.target.value as T)} className={SELECT_CLASS}>
       {options.map((o) => (
-        <option key={o} value={o}>
-          {o.replace(/_/g, " ")}
-        </option>
+        <option key={o} value={o}>{o.replace(/_/g, " ")}</option>
       ))}
     </select>
   );
@@ -61,22 +49,29 @@ export default function CharacterEditor({
   onSave,
   onDelete,
   onClose,
+  onGenerateSuccess,
 }: {
   character: Character;
   gameSet: GameSet;
   onSave: (updates: Updates) => Promise<void>;
   onDelete: () => Promise<void>;
   onClose: () => void;
+  onGenerateSuccess: (generatedImageUrl: string) => void;
 }) {
   const [name, setName] = useState(character.displayName);
   const [attrs, setAttrs] = useState<CharacterAttributes>({ ...character.attributes });
+  const [referenceImageUrls, setReferenceImageUrls] = useState<string[]>(
+    character.referenceImageUrls
+  );
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function setAttr<K extends keyof CharacterAttributes>(
-    key: K,
-    value: CharacterAttributes[K]
-  ) {
+  function setAttr<K extends keyof CharacterAttributes>(key: K, value: CharacterAttributes[K]) {
     setAttrs((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -86,18 +81,140 @@ export default function CharacterEditor({
     setSaving(false);
   }
 
+  async function handleFilesSelected(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const remaining = 3 - referenceImageUrls.length;
+    if (remaining <= 0) return;
+
+    setUploadError(null);
+    setUploading(true);
+
+    const newUrls: string[] = [];
+    const filesToUpload = Array.from(files).slice(0, remaining);
+
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const file = filesToUpload[i];
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${character.gameSetId}/${character.id}/ref-${referenceImageUrls.length + i}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from("character-images")
+        .upload(path, file, { upsert: true });
+
+      if (error) {
+        setUploadError(`Upload failed: ${error.message}`);
+        setUploading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("character-images")
+        .getPublicUrl(path);
+
+      newUrls.push(urlData.publicUrl);
+    }
+
+    const updated = [...referenceImageUrls, ...newUrls];
+    setReferenceImageUrls(updated);
+    await updateCharacter(character.id, { referenceImageUrls: updated });
+    setUploading(false);
+  }
+
+  function handleRemovePhoto(index: number) {
+    const updated = referenceImageUrls.filter((_, i) => i !== index);
+    setReferenceImageUrls(updated);
+    updateCharacter(character.id, { referenceImageUrls: updated });
+  }
+
+  async function handleGenerate() {
+    setGenerateError(null);
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/characters/${character.id}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameSetId: character.gameSetId, imageStyle: gameSet.imageStyle }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error ?? `HTTP ${res.status}`);
+      }
+      const { generatedImageUrl } = await res.json();
+      onGenerateSuccess(generatedImageUrl);
+    } catch (err: unknown) {
+      setGenerateError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   const previewPrompt = generateCharacterPrompt(
     { ...character, displayName: name, attributes: attrs },
     gameSet
   );
 
+  const canGenerate = referenceImageUrls.length > 0;
+
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4 sticky top-8">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">Edit Character</h2>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-lg leading-none">
-          ×
-        </button>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-lg leading-none">×</button>
+      </div>
+
+      {/* Photo upload zone */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
+          Reference Photos ({referenceImageUrls.length}/3)
+        </label>
+
+        {/* Thumbnails */}
+        {referenceImageUrls.length > 0 && (
+          <div className="flex gap-2 mb-2">
+            {referenceImageUrls.map((url, i) => (
+              <div key={i} className="relative w-16 h-16 rounded overflow-hidden border border-gray-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`ref ${i}`} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => handleRemovePhoto(i)}
+                  className="absolute top-0 right-0 w-4 h-4 bg-red-600 text-white text-xs flex items-center justify-center rounded-bl"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Upload button */}
+        {referenceImageUrls.length < 3 && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFilesSelected(e.target.files)}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleFilesSelected(e.dataTransfer.files);
+              }}
+              className="w-full border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-lg py-3 text-xs text-gray-500 hover:text-gray-400 transition-colors disabled:opacity-50"
+            >
+              {uploading ? "Uploading…" : "Click or drop photos here"}
+            </button>
+          </>
+        )}
+
+        {uploadError && (
+          <p className="text-xs text-red-400 mt-1">{uploadError}</p>
+        )}
       </div>
 
       <Field label="Name">
@@ -160,6 +277,10 @@ export default function CharacterEditor({
         )}
       </div>
 
+      {generateError && (
+        <p className="text-xs text-red-400">{generateError}</p>
+      )}
+
       <div className="flex gap-2 pt-1">
         <button
           onClick={handleSave}
@@ -167,6 +288,14 @@ export default function CharacterEditor({
           className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-medium transition-colors"
         >
           {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          onClick={handleGenerate}
+          disabled={!canGenerate || generating}
+          title={!canGenerate ? "Upload at least one photo first" : "Generate portrait"}
+          className="bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          {generating ? "…" : "Generate"}
         </button>
         <button
           onClick={onDelete}
