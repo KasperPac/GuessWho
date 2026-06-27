@@ -297,7 +297,7 @@ export default function GameSetEditorPage({
         {generateAllProgress && (
           <div className="mb-4 text-sm text-gray-400">
             {isGeneratingAll ? (
-              <span>Generating {generateAllProgress.done} / {generateAllProgress.total}…</span>
+              <span>Generating {generateAllProgress.done + 1} / {generateAllProgress.total}…</span>
             ) : (
               <span>
                 {generateAllProgress.done - generateAllProgress.failed} / {generateAllProgress.total} generated.
