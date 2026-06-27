@@ -10,6 +10,18 @@ export type GameTheme =
   | "pirates"
   | "cyberpunk";
 
+// ─── Image Styles ──────────────────────────────────────────────────────────
+
+export type ImageStyle =
+  | "cartoon"
+  | "realistic"
+  | "simpsons"
+  | "pixar"
+  | "watercolour"
+  | "anime"
+  | "lego"
+  | "southpark";
+
 // ─── Attributes ────────────────────────────────────────────────────────────
 
 export type CharacterAttributes = {
@@ -91,6 +103,7 @@ export type GameSet = {
   id: string;
   title: string;
   theme: GameTheme;
+  imageStyle: ImageStyle;
   status: GameSetStatus;
   characterCount: number;
   createdAt: string;
@@ -101,7 +114,7 @@ export type Character = {
   id: string;
   gameSetId: string;
   displayName: string;
-  referenceImageUrl?: string;
+  referenceImageUrls: string[];
   generatedImageUrl?: string;
   attributes: CharacterAttributes;
   prompt?: string;
@@ -159,15 +172,15 @@ export type DeckBalanceReport = {
 // ─── Image Generation ──────────────────────────────────────────────────────
 
 export type GeneratedImageResult = {
-  imageUrl: string;
+  imageData: string;  // base64-encoded image bytes (no data URI prefix)
+  mimeType: string;   // e.g. "image/jpeg"
   provider: string;
   prompt: string;
-  metadata?: Record<string, unknown>;
 };
 
 export interface ImageGenerationProvider {
   generateImage(
     prompt: string,
-    referenceImageUrl?: string
+    referenceImageUrls: string[]
   ): Promise<GeneratedImageResult>;
 }

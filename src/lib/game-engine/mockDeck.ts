@@ -6,6 +6,7 @@ export const MOCK_GAME_SET: GameSet = {
   id: "mock-set-001",
   title: "Classic Office Pack",
   theme: "classic_office",
+  imageStyle: "pixar",
   status: "draft",
   characterCount: 24,
   createdAt: "2025-01-01T00:00:00Z",
@@ -20,6 +21,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-001",
     gameSetId: "mock-set-001",
     displayName: "Alex",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "short",
       hairColor: "black",
@@ -40,6 +42,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-002",
     gameSetId: "mock-set-001",
     displayName: "Barb",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "long",
       hairColor: "blonde",
@@ -60,6 +63,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-003",
     gameSetId: "mock-set-001",
     displayName: "Carlos",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "buzz",
       hairColor: "brown",
@@ -80,6 +84,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-004",
     gameSetId: "mock-set-001",
     displayName: "Dana",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "medium",
       hairColor: "red",
@@ -100,6 +105,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-005",
     gameSetId: "mock-set-001",
     displayName: "Ezra",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "bald",
       hairColor: "hidden",
@@ -120,6 +126,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-006",
     gameSetId: "mock-set-001",
     displayName: "Farida",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "long",
       hairColor: "black",
@@ -140,6 +147,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-007",
     gameSetId: "mock-set-001",
     displayName: "Greg",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "short",
       hairColor: "grey",
@@ -160,6 +168,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-008",
     gameSetId: "mock-set-001",
     displayName: "Hana",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "medium",
       hairColor: "brown",
@@ -180,6 +189,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-009",
     gameSetId: "mock-set-001",
     displayName: "Idris",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "short",
       hairColor: "black",
@@ -200,6 +210,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-010",
     gameSetId: "mock-set-001",
     displayName: "Jen",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "short",
       hairColor: "dyed",
@@ -220,6 +231,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-011",
     gameSetId: "mock-set-001",
     displayName: "Kenji",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "medium",
       hairColor: "black",
@@ -240,6 +252,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-012",
     gameSetId: "mock-set-001",
     displayName: "Luna",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "long",
       hairColor: "brown",
@@ -260,6 +273,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-013",
     gameSetId: "mock-set-001",
     displayName: "Marcus",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "bald",
       hairColor: "hidden",
@@ -280,6 +294,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-014",
     gameSetId: "mock-set-001",
     displayName: "Nadia",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "medium",
       hairColor: "blonde",
@@ -300,6 +315,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-015",
     gameSetId: "mock-set-001",
     displayName: "Omar",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "short",
       hairColor: "brown",
@@ -320,6 +336,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-016",
     gameSetId: "mock-set-001",
     displayName: "Priya",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "long",
       hairColor: "black",
@@ -340,6 +357,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-017",
     gameSetId: "mock-set-001",
     displayName: "Quinn",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "buzz",
       hairColor: "blonde",
@@ -360,6 +378,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-018",
     gameSetId: "mock-set-001",
     displayName: "Remy",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "medium",
       hairColor: "grey",
@@ -380,6 +399,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-019",
     gameSetId: "mock-set-001",
     displayName: "Sana",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "long",
       hairColor: "red",
@@ -400,6 +420,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-020",
     gameSetId: "mock-set-001",
     displayName: "Tomas",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "short",
       hairColor: "brown",
@@ -420,6 +441,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-021",
     gameSetId: "mock-set-001",
     displayName: "Uma",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "medium",
       hairColor: "black",
@@ -440,6 +462,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-022",
     gameSetId: "mock-set-001",
     displayName: "Viktor",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "short",
       hairColor: "white",
@@ -460,6 +483,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-023",
     gameSetId: "mock-set-001",
     displayName: "Wren",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "long",
       hairColor: "dyed",
@@ -480,6 +504,7 @@ export const MOCK_CHARACTERS: Character[] = [
     id: "c-024",
     gameSetId: "mock-set-001",
     displayName: "Xander",
+    referenceImageUrls: [],
     attributes: {
       hairLength: "buzz",
       hairColor: "brown",
