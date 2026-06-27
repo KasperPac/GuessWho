@@ -6,14 +6,16 @@ import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import { GeminiImageProvider } from "@/lib/image-generation/GeminiImageProvider";
 import type { ImageStyle } from "@/types/game";
 
-const apiKey = process.env.GOOGLE_AI_API_KEY;
-if (!apiKey) {
-  throw new Error("GOOGLE_AI_API_KEY environment variable is not set");
+function getProvider(): GeminiImageProvider {
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GOOGLE_AI_API_KEY environment variable is not set");
+  }
+  return new GeminiImageProvider(apiKey);
 }
-const provider = new GeminiImageProvider(apiKey);
 
 async function callGemini(prompt: string, referenceImageUrls: string[]) {
-  return provider.generateImage(prompt, referenceImageUrls);
+  return getProvider().generateImage(prompt, referenceImageUrls);
 }
 
 async function callGeminiWithRetry(prompt: string, referenceImageUrls: string[]) {
