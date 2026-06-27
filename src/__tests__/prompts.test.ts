@@ -132,7 +132,7 @@ describe("generateAllPrompts", () => {
 
   it("generates unique prompts for characters with different attributes", () => {
     const prompts = generateAllPrompts(MOCK_CHARACTERS, MOCK_GAME_SET);
-    const values = [...prompts.values()];
+    const values = Array.from(prompts.values());
     const uniqueValues = new Set(values);
     // All 24 characters in the mock deck have different attributes — prompts should differ
     expect(uniqueValues.size).toBe(MOCK_CHARACTERS.length);

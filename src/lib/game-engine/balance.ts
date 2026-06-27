@@ -41,7 +41,7 @@ function analyzeTraitDistributions(
       }
     }
 
-    for (const [value, count] of counts.entries()) {
+    for (const [value, count] of Array.from(counts.entries())) {
       distributions.push({
         trait,
         value,
@@ -267,7 +267,7 @@ function buildSuggestedFixes(
     if (d.trait === "topColor") topColorCounts.set(d.value, d.count);
   }
 
-  const overusedColor = [...topColorCounts.entries()].find(
+  const overusedColor = Array.from(topColorCounts.entries()).find(
     ([, count]) => count > 10
   );
   if (overusedColor) {
