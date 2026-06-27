@@ -56,7 +56,7 @@ export default function CharacterEditor({
   onSave: (updates: Updates) => Promise<void>;
   onDelete: () => Promise<void>;
   onClose: () => void;
-  onGenerateSuccess: (generatedImageUrl: string) => void;
+  onGenerateSuccess?: (generatedImageUrl: string) => void;
 }) {
   const [name, setName] = useState(character.displayName);
   const [attrs, setAttrs] = useState<CharacterAttributes>({ ...character.attributes });
@@ -83,19 +83,17 @@ export default function CharacterEditor({
 
   async function handleFilesSelected(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const remaining = 3 - referenceImageUrls.length;
-    if (remaining <= 0) return;
 
     setUploadError(null);
     setUploading(true);
 
-    const newUrls: string[] = [];
-    const filesToUpload = Array.from(files).slice(0, remaining);
+    let currentUrls = [...referenceImageUrls];
 
-    for (let i = 0; i < filesToUpload.length; i++) {
-      const file = filesToUpload[i];
+    for (const file of Array.from(files)) {
+      if (currentUrls.length >= 3) break;
+
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `${character.gameSetId}/${character.id}/ref-${referenceImageUrls.length + i}.${ext}`;
+      const path = `${character.gameSetId}/${character.id}/ref-${currentUrls.length}.${ext}`;
 
       const { error } = await supabase.storage
         .from("character-images")
@@ -103,27 +101,35 @@ export default function CharacterEditor({
 
       if (error) {
         setUploadError(`Upload failed: ${error.message}`);
-        setUploading(false);
-        return;
+        break;
       }
 
       const { data: urlData } = supabase.storage
         .from("character-images")
         .getPublicUrl(path);
 
-      newUrls.push(urlData.publicUrl);
+      currentUrls = [...currentUrls, urlData.publicUrl];
     }
 
-    const updated = [...referenceImageUrls, ...newUrls];
-    setReferenceImageUrls(updated);
-    await updateCharacter(character.id, { referenceImageUrls: updated });
+    // Commit all successful uploads at once
+    if (currentUrls.length > referenceImageUrls.length) {
+      setReferenceImageUrls(currentUrls);
+      await updateCharacter(character.id, { referenceImageUrls: currentUrls });
+    }
+
     setUploading(false);
   }
 
-  function handleRemovePhoto(index: number) {
+  async function handleRemovePhoto(index: number) {
     const updated = referenceImageUrls.filter((_, i) => i !== index);
     setReferenceImageUrls(updated);
-    updateCharacter(character.id, { referenceImageUrls: updated });
+    try {
+      await updateCharacter(character.id, { referenceImageUrls: updated });
+    } catch (err: unknown) {
+      // Revert state on DB failure
+      setReferenceImageUrls(referenceImageUrls);
+      setUploadError(err instanceof Error ? err.message : "Failed to remove photo");
+    }
   }
 
   async function handleGenerate() {
@@ -140,7 +146,7 @@ export default function CharacterEditor({
         throw new Error(error ?? `HTTP ${res.status}`);
       }
       const { generatedImageUrl } = await res.json();
-      onGenerateSuccess(generatedImageUrl);
+      onGenerateSuccess?.(generatedImageUrl);
     } catch (err: unknown) {
       setGenerateError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -293,9 +299,12 @@ export default function CharacterEditor({
           onClick={handleGenerate}
           disabled={!canGenerate || generating}
           title={!canGenerate ? "Upload at least one photo first" : "Generate portrait"}
-          className="bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-2 bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
         >
-          {generating ? "…" : "Generate"}
+          {generating && (
+            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+          )}
+          {generating ? "Generating…" : "Generate"}
         </button>
         <button
           onClick={onDelete}
