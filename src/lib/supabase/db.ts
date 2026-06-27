@@ -14,6 +14,7 @@ function rowToGameSet(row: Record<string, unknown>): GameSet {
     id: row.id as string,
     title: row.title as string,
     theme: row.theme as GameSet["theme"],
+    imageStyle: (row.image_style as GameSet["imageStyle"]) ?? "pixar",
     status: row.status as GameSet["status"],
     characterCount: row.character_count as number,
     createdAt: row.created_at as string,
@@ -26,7 +27,7 @@ function rowToCharacter(row: Record<string, unknown>): Character {
     id: row.id as string,
     gameSetId: row.game_set_id as string,
     displayName: row.display_name as string,
-    referenceImageUrl: row.reference_image_url as string | undefined,
+    referenceImageUrls: (row.reference_image_urls as string[] | null) ?? [],
     generatedImageUrl: row.generated_image_url as string | undefined,
     attributes: row.attributes as CharacterAttributes,
     prompt: row.prompt as string | undefined,
@@ -63,11 +64,15 @@ export async function getGameSet(id: string): Promise<GameSet | null> {
 }
 
 export async function createGameSet(
-  input: Pick<GameSet, "title" | "theme">
+  input: Pick<GameSet, "title" | "theme"> & Partial<Pick<GameSet, "imageStyle">>
 ): Promise<GameSet> {
   const { data, error } = await supabase
     .from("game_sets")
-    .insert({ title: input.title, theme: input.theme })
+    .insert({
+      title: input.title,
+      theme: input.theme,
+      ...(input.imageStyle ? { image_style: input.imageStyle } : {}),
+    })
     .select()
     .single();
 
@@ -77,11 +82,19 @@ export async function createGameSet(
 
 export async function updateGameSet(
   id: string,
-  input: Partial<Pick<GameSet, "title" | "theme" | "status">>
+  input: Partial<Pick<GameSet, "title" | "theme" | "status" | "imageStyle">>
 ): Promise<GameSet> {
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.theme !== undefined) patch.theme = input.theme;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.imageStyle !== undefined) patch.image_style = input.imageStyle;
+
   const { data, error } = await supabase
     .from("game_sets")
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(patch)
     .eq("id", id)
     .select()
     .single();
@@ -124,7 +137,7 @@ export async function getCharacter(id: string): Promise<Character | null> {
 
 export async function createCharacter(
   input: Pick<Character, "gameSetId" | "displayName" | "attributes"> &
-    Partial<Pick<Character, "referenceImageUrl">>
+    Partial<Pick<Character, "referenceImageUrls">>
 ): Promise<Character> {
   const { data, error } = await supabase
     .from("characters")
@@ -132,7 +145,7 @@ export async function createCharacter(
       game_set_id: input.gameSetId,
       display_name: input.displayName,
       attributes: input.attributes,
-      reference_image_url: input.referenceImageUrl,
+      reference_image_urls: input.referenceImageUrls ?? [],
     })
     .select()
     .single();
@@ -148,7 +161,7 @@ export async function updateCharacter(
       Character,
       | "displayName"
       | "attributes"
-      | "referenceImageUrl"
+      | "referenceImageUrls"
       | "generatedImageUrl"
       | "prompt"
       | "balanceWarnings"
@@ -160,8 +173,8 @@ export async function updateCharacter(
   };
   if (input.displayName !== undefined) patch.display_name = input.displayName;
   if (input.attributes !== undefined) patch.attributes = input.attributes;
-  if (input.referenceImageUrl !== undefined)
-    patch.reference_image_url = input.referenceImageUrl;
+  if (input.referenceImageUrls !== undefined)
+    patch.reference_image_urls = input.referenceImageUrls;
   if (input.generatedImageUrl !== undefined)
     patch.generated_image_url = input.generatedImageUrl;
   if (input.prompt !== undefined) patch.prompt = input.prompt;
