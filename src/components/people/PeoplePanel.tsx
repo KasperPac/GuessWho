@@ -18,6 +18,7 @@ export default function PeoplePanel({
   // null = closed, "new" = create form, uuid = edit form for that person
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   const editingPerson =
     editingId && editingId !== "new"
@@ -25,12 +26,17 @@ export default function PeoplePanel({
       : undefined;
 
   async function handleCardClick(person: Person) {
+    // When a character is selected, clicking a card always assigns (by design).
+    // To edit a person, deselect the character first.
     if (selectedCharId) {
       setAssigning(person.id);
+      setAssignError(null);
       try {
         await onAssign(person);
+      } catch (err) {
+        setAssignError(err instanceof Error ? err.message : "Assign failed");
       } finally {
-        setAssigning(null);
+        setAssigning((current) => (current === person.id ? null : current));
       }
     } else {
       setEditingId(editingId === person.id ? null : person.id);
@@ -70,6 +76,8 @@ export default function PeoplePanel({
       {hasSelection && (
         <p className="text-xs text-indigo-400 mb-2">Click a person to assign →</p>
       )}
+
+      {assignError && <p className="text-xs text-red-400 mb-2">{assignError}</p>}
 
       {people.length === 0 && editingId === null ? (
         <p className="text-xs text-gray-600 text-center py-3">No people yet.</p>
