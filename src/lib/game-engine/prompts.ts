@@ -193,6 +193,70 @@ export function generateCharacterPrompt(
   ].join("\n");
 }
 
+// ─── Image Generation Prompt ─────────────────────────────────────────────────
+// Separate from generateCharacterPrompt (which is used for balance scoring).
+// Physical appearance comes from the reference photo; only costume/props are specified.
+
+export function generateImagePrompt(
+  character: Character,
+  gameSet: GameSet
+): string {
+  const themeConfig = getThemeConfig(gameSet.theme);
+  const { attributes, displayName } = character;
+
+  // Outfit
+  const colorMap: Record<string, string> = {
+    red: "red", blue: "blue", green: "green", yellow: "yellow",
+    black: "black", white: "white", purple: "purple", orange: "orange",
+  };
+  const outfitMap: Record<string, string> = {
+    tshirt: "t-shirt", shirt: "collared shirt", hoodie: "hoodie",
+    jacket: "jacket", suit: "suit", armour: "suit of armour",
+    spacesuit: "spacesuit", robe: "robe", drag_outfit: "sequinned drag outfit",
+  };
+  const outfit = `${colorMap[attributes.topColor] ?? attributes.topColor} ${outfitMap[attributes.outfitType] ?? attributes.outfitType}`;
+
+  // Accessories (only if present)
+  const accessoryMap: Record<string, string> = {
+    none: "", coffee_mug: "holding a coffee mug", laptop: "holding a laptop",
+    sword: "holding a sword", shield: "holding a shield",
+    staff: "holding a magical staff", jetpack: "wearing a jetpack",
+    feather_boa: "wearing a feather boa", microphone: "holding a microphone",
+  };
+  const hatMap: Record<string, string> = {
+    none: "", cap: "wearing a baseball cap", beanie: "wearing a beanie",
+    helmet: "wearing a helmet", crown: "wearing a crown",
+    cowboy_hat: "wearing a cowboy hat", wizard_hat: "wearing a wizard hat",
+  };
+  const glasseMap: Record<string, string> = {
+    none: "", round: "wearing round glasses", square: "wearing square glasses",
+    sunglasses: "wearing sunglasses",
+  };
+
+  const props = [
+    hatMap[attributes.hat],
+    glasseMap[attributes.glasses],
+    accessoryMap[attributes.accessory],
+  ].filter(Boolean);
+
+  const propBlock = props.length > 0
+    ? `\nCostume additions (apply these on top of the person's real appearance):\n${props.map(p => `- ${p}`).join("\n")}`
+    : "";
+
+  return [
+    `PHOTO REFERENCE: The attached photo shows the real person. Preserve their actual facial likeness exactly — face shape, skin tone, hair (colour, length, and texture), natural expression, and eye colour. Do not alter their physical appearance.`,
+    ``,
+    `CHARACTER NAME: ${displayName}`,
+    ``,
+    `OUTFIT: The person is wearing a ${outfit}.`,
+    propBlock,
+    ``,
+    `SCENE / THEME: ${themeConfig.promptThemeInstruction}`,
+    ``,
+    `FRAMING: Front-facing portrait, head and shoulders visible, centred, suitable for a printed game card.`,
+  ].join("\n");
+}
+
 // ─── Batch Generation ────────────────────────────────────────────────────────
 
 export function generateAllPrompts(

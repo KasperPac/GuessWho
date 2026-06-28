@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCharacter, getGameSet, updateCharacter } from "@/lib/supabase/db";
 import { supabase } from "@/lib/supabase/client";
-import { generateCharacterPrompt } from "@/lib/game-engine/prompts";
+import { generateImagePrompt } from "@/lib/game-engine/prompts";
 import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import { GeminiImageProvider } from "@/lib/image-generation/GeminiImageProvider";
 import type { ImageStyle } from "@/types/game";
@@ -76,14 +76,10 @@ export async function POST(
     return NextResponse.json({ error: "Game set not found" }, { status: 404 });
   }
 
-  // 4. Build prompt: reference instruction + base prompt + style modifier
-  const basePrompt = generateCharacterPrompt(character, gameSet);
+  // 4. Build prompt: photo-first prompt + style modifier
+  const basePrompt = generateImagePrompt(character, gameSet);
   const styleModifier = IMAGE_STYLE_CONFIGS[imageStyle].promptModifier;
-  const refCount = character.referenceImageUrls.length;
-  const referenceInstruction = refCount > 0
-    ? `IMPORTANT: The ${refCount > 1 ? `${refCount} attached photos are` : "attached photo is"} of the actual person. Your generated portrait MUST capture their facial likeness — face shape, skin tone, age, and distinctive facial features. Do not invent a generic character; base the face on the reference ${refCount > 1 ? "photos" : "photo"}.\n\n`
-    : "";
-  const fullPrompt = `${referenceInstruction}${basePrompt}\n\nStyle instruction: ${styleModifier}`;
+  const fullPrompt = `${basePrompt}\n\nARTISTIC STYLE: ${styleModifier}`;
 
   // 5. Call Gemini
   let result;
