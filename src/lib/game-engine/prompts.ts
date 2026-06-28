@@ -251,7 +251,7 @@ export function generateImagePrompt(
     : `FRAMING: Front-facing portrait, head and shoulders visible, centred, suitable for a printed game card.`;
 
   return [
-    `PHOTO REFERENCE: The attached photo shows the real person. Preserve their actual facial likeness exactly — face shape, skin tone, hair (colour, length, and texture), natural expression, and eye colour. Do not alter their physical appearance.`,
+    `VISUAL REFERENCE: Use the attached photo as the appearance reference for this character. Match the hair colour, hair length and style, skin tone, eye colour, and general face shape shown in the photo. Apply these features to the illustrated character portrait.`,
     ``,
     `CHARACTER NAME: ${displayName}`,
     ``,
