@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { Character, CharacterAttributes, GameSet } from "@/types/game";
-import { generateCharacterPrompt } from "@/lib/game-engine/prompts";
+import { generateImagePrompt } from "@/lib/game-engine/prompts";
 import {
   HAIR_LENGTHS, HAIR_COLORS, HAIR_TEXTURES, FACIAL_HAIRS,
   GLASSES, HATS, EYE_COLORS, EXPRESSIONS, TOP_COLORS,
@@ -154,7 +154,7 @@ export default function CharacterEditor({
     }
   }
 
-  const previewPrompt = generateCharacterPrompt(
+  const previewPrompt = generateImagePrompt(
     { ...character, displayName: name, attributes: attrs },
     gameSet
   );
