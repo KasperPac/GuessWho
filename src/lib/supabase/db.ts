@@ -4,6 +4,7 @@ import type {
   Character,
   CharacterAttributes,
   DeckBalanceReport,
+  Person,
 } from "@/types/game";
 
 // ─── Type helpers ─────────────────────────────────────────────────────────────
@@ -29,9 +30,20 @@ function rowToCharacter(row: Record<string, unknown>): Character {
     displayName: row.display_name as string,
     referenceImageUrls: (row.reference_image_urls as string[] | null) ?? [],
     generatedImageUrl: row.generated_image_url as string | undefined,
+    personId: row.person_id as string | undefined,
     attributes: row.attributes as CharacterAttributes,
     prompt: row.prompt as string | undefined,
     balanceWarnings: row.balance_warnings as string[] | undefined,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function rowToPerson(row: Record<string, unknown>): Person {
+  return {
+    id: row.id as string,
+    displayName: row.display_name as string,
+    referenceImageUrls: (row.reference_image_urls as string[] | null) ?? [],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -108,6 +120,49 @@ export async function deleteGameSet(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ─── People CRUD ──────────────────────────────────────────────────────────────
+
+export async function listPeople(): Promise<Person[]> {
+  const { data, error } = await supabase
+    .from("people")
+    .select("*")
+    .order("display_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(rowToPerson);
+}
+
+export async function createPerson(input: { displayName: string }): Promise<Person> {
+  const { data, error } = await supabase
+    .from("people")
+    .insert({ display_name: input.displayName })
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToPerson(data);
+}
+
+export async function updatePerson(
+  id: string,
+  input: Partial<{ displayName: string; referenceImageUrls: string[] }>
+): Promise<Person> {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.displayName !== undefined) patch.display_name = input.displayName;
+  if (input.referenceImageUrls !== undefined) patch.reference_image_urls = input.referenceImageUrls;
+  const { data, error } = await supabase
+    .from("people")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToPerson(data);
+}
+
+export async function deletePerson(id: string): Promise<void> {
+  const { error } = await supabase.from("people").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ─── Character CRUD ───────────────────────────────────────────────────────────
 
 export async function listCharacters(gameSetId: string): Promise<Character[]> {
@@ -166,7 +221,7 @@ export async function updateCharacter(
       | "prompt"
       | "balanceWarnings"
     >
-  >
+  > & { personId?: string | null }
 ): Promise<Character> {
   const patch: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -180,6 +235,7 @@ export async function updateCharacter(
   if (input.prompt !== undefined) patch.prompt = input.prompt;
   if (input.balanceWarnings !== undefined)
     patch.balance_warnings = input.balanceWarnings;
+  if ("personId" in input) patch.person_id = input.personId ?? null;
 
   const { data, error } = await supabase
     .from("characters")

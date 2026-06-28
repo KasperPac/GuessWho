@@ -116,9 +116,18 @@ export type Character = {
   displayName: string;
   referenceImageUrls: string[];
   generatedImageUrl?: string;
+  personId?: string;
   attributes: CharacterAttributes;
   prompt?: string;
   balanceWarnings?: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Person = {
+  id: string;
+  displayName: string;
+  referenceImageUrls: string[];
   createdAt: string;
   updatedAt: string;
 };
