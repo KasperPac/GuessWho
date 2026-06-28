@@ -30,7 +30,7 @@ function rowToCharacter(row: Record<string, unknown>): Character {
     displayName: row.display_name as string,
     referenceImageUrls: (row.reference_image_urls as string[] | null) ?? [],
     generatedImageUrl: row.generated_image_url as string | undefined,
-    personId: row.person_id as string | undefined,
+    personId: (row.person_id as string | null) ?? undefined,
     attributes: row.attributes as CharacterAttributes,
     prompt: row.prompt as string | undefined,
     balanceWarnings: row.balance_warnings as string[] | undefined,
