@@ -31,7 +31,7 @@ export class GeminiImageProvider implements ImageGenerationProvider {
     );
 
     const interaction = await this.ai.interactions.create({
-      model: "gemini-2.5-flash-image",
+      model: "gemini-3-pro-image",
       input: [
         { type: "text" as const, text: prompt },
         ...imageParts,
