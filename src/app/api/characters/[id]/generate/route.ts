@@ -76,10 +76,14 @@ export async function POST(
     return NextResponse.json({ error: "Game set not found" }, { status: 404 });
   }
 
-  // 4. Build prompt: base prompt + style modifier
+  // 4. Build prompt: reference instruction + base prompt + style modifier
   const basePrompt = generateCharacterPrompt(character, gameSet);
   const styleModifier = IMAGE_STYLE_CONFIGS[imageStyle].promptModifier;
-  const fullPrompt = `${basePrompt}\n\nStyle instruction: ${styleModifier}`;
+  const refCount = character.referenceImageUrls.length;
+  const referenceInstruction = refCount > 0
+    ? `IMPORTANT: The ${refCount > 1 ? `${refCount} attached photos are` : "attached photo is"} of the actual person. Your generated portrait MUST capture their facial likeness — face shape, skin tone, age, and distinctive facial features. Do not invent a generic character; base the face on the reference ${refCount > 1 ? "photos" : "photo"}.\n\n`
+    : "";
+  const fullPrompt = `${referenceInstruction}${basePrompt}\n\nStyle instruction: ${styleModifier}`;
 
   // 5. Call Gemini
   let result;
