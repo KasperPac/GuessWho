@@ -15,6 +15,7 @@ export class GeminiImageProvider implements ImageGenerationProvider {
     if (referenceImageUrls.length === 0) {
       throw new Error("At least one reference image URL is required");
     }
+
     // Fetch each reference image and convert to base64 inline data
     const imageParts = await Promise.all(
       referenceImageUrls.map(async (url) => {
@@ -25,40 +26,27 @@ export class GeminiImageProvider implements ImageGenerationProvider {
         const buffer = await res.arrayBuffer();
         const base64 = Buffer.from(buffer).toString("base64");
         const mimeType = res.headers.get("content-type") ?? "image/jpeg";
-        return {
-          inlineData: { data: base64, mimeType },
-        };
+        return { type: "image" as const, data: base64, mime_type: mimeType };
       })
     );
 
-    const contents = [
-      {
-        role: "user",
-        parts: [
-          { text: prompt },
-          ...imageParts,
-        ],
-      },
-    ];
-
-    const response = await this.ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation",
-      contents,
-      config: {
-        responseModalities: ["IMAGE"],
-      },
+    const interaction = await this.ai.interactions.create({
+      model: "gemini-2.5-flash-image",
+      input: [
+        { type: "text" as const, text: prompt },
+        ...imageParts,
+      ],
+      response_modalities: ["image"],
     });
 
-    const parts = response.candidates?.[0]?.content?.parts ?? [];
-    const imagePart = parts.find((p) => p.inlineData);
-
-    if (!imagePart?.inlineData?.data) {
+    const outputImage = interaction.output_image;
+    if (!outputImage?.data) {
       throw new Error("Gemini returned no image in response");
     }
 
     return {
-      imageData: imagePart.inlineData.data ?? "",
-      mimeType: imagePart.inlineData.mimeType ?? "image/jpeg",
+      imageData: outputImage.data,
+      mimeType: outputImage.mime_type ?? "image/jpeg",
       provider: "gemini",
       prompt,
     };
