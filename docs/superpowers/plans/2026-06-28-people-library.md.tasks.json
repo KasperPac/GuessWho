@@ -1,0 +1,40 @@
+{
+  "planPath": "docs/superpowers/plans/2026-06-28-people-library.md",
+  "tasks": [
+    {
+      "id": 19,
+      "subject": "Task 1: DB migration + types + DB layer",
+      "status": "pending",
+      "description": "**Goal:** Schema, TypeScript types, and Supabase DB functions for people.\n\n**Files:**\n- Modify: `src/types/game.ts`\n- Modify: `src/lib/supabase/db.ts`\n- Manual: run migration SQL in Supabase dashboard\n\n**Verify:** `npx tsc --noEmit` → no output\n\n```json:metadata\n{\"files\": [\"src/types/game.ts\", \"src/lib/supabase/db.ts\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Person type exported\", \"Character.personId exists\", \"listPeople/createPerson/updatePerson/deletePerson exported\", \"updateCharacter accepts personId\"]}\n```"
+    },
+    {
+      "id": 20,
+      "subject": "Task 2: PersonForm component",
+      "status": "pending",
+      "blockedBy": [19],
+      "description": "**Goal:** Inline form for creating and editing a person.\n\n**Files:**\n- Create: `src/components/people/PersonForm.tsx`\n\n**Verify:** `npx tsc --noEmit` → no output\n\n```json:metadata\n{\"files\": [\"src/components/people/PersonForm.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Create mode works\", \"Edit mode photo upload\", \"Delete works\"]}\n```"
+    },
+    {
+      "id": 21,
+      "subject": "Task 3: PeoplePanel component",
+      "status": "pending",
+      "blockedBy": [20],
+      "description": "**Goal:** Always-visible panel showing the people library.\n\n**Files:**\n- Create: `src/components/people/PeoplePanel.tsx`\n\n**Verify:** `npx tsc --noEmit` → no output\n\n```json:metadata\n{\"files\": [\"src/components/people/PeoplePanel.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"3-column grid\", \"Assign on click\", \"Inline edit\", \"Create transitions to edit\"]}\n```"
+    },
+    {
+      "id": 22,
+      "subject": "Task 4: CharacterEditor assigned-person badge",
+      "status": "pending",
+      "blockedBy": [19],
+      "description": "**Goal:** Show assigned person badge in CharacterEditor with unassign.\n\n**Files:**\n- Modify: `src/components/game-sets/CharacterEditor.tsx`\n\n**Verify:** `npx tsc --noEmit` → no output\n\n```json:metadata\n{\"files\": [\"src/components/game-sets/CharacterEditor.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"assignedPerson prop\", \"onUnassign prop\", \"Badge shows thumbnail + name\", \"Unassign updates DB\"]}\n```"
+    },
+    {
+      "id": 23,
+      "subject": "Task 5: Wire everything together in the game set editor page",
+      "status": "pending",
+      "blockedBy": [21, 22],
+      "description": "**Goal:** Load people on mount, render PeoplePanel always, handle assign/unassign.\n\n**Files:**\n- Modify: `src/app/game-sets/[id]/page.tsx`\n\n**Verify:** `npx tsc --noEmit` → no output; smoke test in browser\n\n```json:metadata\n{\"files\": [\"src/app/game-sets/[id]/page.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"People loaded on mount\", \"PeoplePanel always visible\", \"Assign copies photos + personId\", \"Unassign clears state\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-06-28T00:00:00.000Z"
+}

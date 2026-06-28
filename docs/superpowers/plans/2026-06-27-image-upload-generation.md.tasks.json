@@ -1,0 +1,14 @@
+{
+  "planPath": "docs/superpowers/plans/2026-06-27-image-upload-generation.md",
+  "tasks": [
+    { "id": 10, "subject": "Task 1: TypeScript types + mockDeck update", "status": "completed" },
+    { "id": 11, "subject": "Task 2: DB migration + DB service update", "status": "completed" },
+    { "id": 12, "subject": "Task 3: Image style config module + tests", "status": "completed" },
+    { "id": 13, "subject": "Task 4: Install @google/genai + GeminiImageProvider", "status": "completed" },
+    { "id": 14, "subject": "Task 5: Generate API route", "status": "completed" },
+    { "id": 15, "subject": "Task 6: CharacterCard spinner + badge", "status": "completed" },
+    { "id": 16, "subject": "Task 7: CharacterEditor photo upload + Generate button", "status": "completed" },
+    { "id": 17, "subject": "Task 8: Game set editor — style picker + Generate All", "status": "completed" }
+  ],
+  "lastUpdated": "2026-06-27T14:00:00Z"
+}
