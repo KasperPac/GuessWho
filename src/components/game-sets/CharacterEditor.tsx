@@ -77,6 +77,7 @@ export default function CharacterEditor({
   const [physicalOverride, setPhysicalOverride] = useState(false);
   const [lastUsedPrompt, setLastUsedPrompt] = useState<string | null>(null);
   const [showLastPrompt, setShowLastPrompt] = useState(false);
+  const [unassignError, setUnassignError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function setAttr<K extends keyof CharacterAttributes>(key: K, value: CharacterAttributes[K]) {
@@ -141,11 +142,12 @@ export default function CharacterEditor({
   }
 
   async function handleUnassign() {
+    setUnassignError(null);
     try {
       await updateCharacter(character.id, { personId: null });
       onUnassign?.();
     } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : "Failed to unassign person");
+      setUnassignError(err instanceof Error ? err.message : "Failed to unassign person");
     }
   }
 
@@ -200,28 +202,31 @@ export default function CharacterEditor({
 
       {/* Assigned person badge */}
       {assignedPerson && (
-        <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2">
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0">
-            {assignedPerson.referenceImageUrls[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={assignedPerson.referenceImageUrls[0]}
-                alt={assignedPerson.displayName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="w-full h-full flex items-center justify-center text-gray-500 text-sm">👤</span>
-            )}
+        <>
+          <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0">
+              {assignedPerson.referenceImageUrls[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={assignedPerson.referenceImageUrls[0]}
+                  alt={assignedPerson.displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="w-full h-full flex items-center justify-center text-gray-500 text-sm">👤</span>
+              )}
+            </div>
+            <span className="text-sm text-gray-200 flex-1 truncate">{assignedPerson.displayName}</span>
+            <button
+              onClick={handleUnassign}
+              className="text-gray-500 hover:text-gray-300 text-xs"
+              title="Unassign person"
+            >
+              ×
+            </button>
           </div>
-          <span className="text-sm text-gray-200 flex-1 truncate">{assignedPerson.displayName}</span>
-          <button
-            onClick={handleUnassign}
-            className="text-gray-500 hover:text-gray-300 text-xs"
-            title="Unassign person"
-          >
-            ×
-          </button>
-        </div>
+          {unassignError && <p className="text-xs text-red-400 mt-1">{unassignError}</p>}
+        </>
       )}
 
       {/* Photo upload zone */}

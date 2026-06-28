@@ -49,24 +49,29 @@ export default function PersonForm({
     if (!files || files.length === 0 || !person) return;
     setUploading(true);
     setError(null);
-    let current = [...urls];
-    for (const file of Array.from(files)) {
-      if (current.length >= 3) break;
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `people/${person.id}/ref-${current.length}.${ext}`;
-      const { error: uploadErr } = await supabase.storage
-        .from("character-images")
-        .upload(path, file, { upsert: true });
-      if (uploadErr) { setError(uploadErr.message); break; }
-      const { data } = supabase.storage.from("character-images").getPublicUrl(path);
-      current = [...current, data.publicUrl];
+    try {
+      let current = [...urls];
+      for (const file of Array.from(files)) {
+        if (current.length >= 3) break;
+        const ext = file.name.split(".").pop() ?? "jpg";
+        const path = `people/${person.id}/ref-${current.length}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("character-images")
+          .upload(path, file, { upsert: true });
+        if (uploadErr) { setError(uploadErr.message); break; }
+        const { data } = supabase.storage.from("character-images").getPublicUrl(path);
+        current = [...current, data.publicUrl];
+      }
+      if (current.length > urls.length) {
+        setUrls(current);
+        await updatePerson(person.id, { referenceImageUrls: current });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    if (current.length > urls.length) {
-      setUrls(current);
-      await updatePerson(person.id, { referenceImageUrls: current });
-    }
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleRemovePhoto(index: number) {
