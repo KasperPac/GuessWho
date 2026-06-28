@@ -298,18 +298,31 @@ export function generateImagePrompt(
     }
   }
 
+  const compositionBlock = heldItem
+    ? `COMPOSITION — follow exactly:
+- Square canvas. Show character from waist up — hands and held item must be in the lower portion.
+- Character faces the camera directly forward. Head perfectly centred left-right.
+- No three-quarter angle, no tilt, no profile view.
+- Camera at eye level.`
+    : `COMPOSITION — follow exactly:
+- Square canvas. Show head and upper chest only — crop at mid-chest level.
+- Character faces the camera directly forward. Head perfectly centred left-right.
+- Face fills approximately 60% of the frame height. Top of head 5–10% from the top edge.
+- No three-quarter angle, no tilt, no profile view. No extreme close-up. No wide shot.
+- Camera at eye level — no upward or downward angle.`;
+
   return [
-    `VISUAL REFERENCE: Use the attached photo as the appearance reference for this character. Match the hair colour, hair style, skin tone, eye colour, and general face shape shown in the photo.`,
+    compositionBlock,
+    ``,
+    `THEME: ${themeConfig.promptThemeInstruction}`,
+    ``,
+    `VISUAL REFERENCE: Use the attached photo as the appearance reference. Match the hair colour, hair style, skin tone, eye colour, and general face shape shown in the photo.`,
     physicalBlock,
     ``,
     `CHARACTER NAME: ${displayName}`,
     ``,
     `OUTFIT: The character is wearing a ${outfit}.`,
     accessoriesBlock,
-    ``,
-    `SCENE / THEME: ${themeConfig.promptThemeInstruction}`,
-    ``,
-    framing,
   ].join("\n");
 }
 

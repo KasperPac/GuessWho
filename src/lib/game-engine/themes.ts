@@ -17,7 +17,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["tshirt", "shirt", "hoodie", "jacket", "suit"],
     allowedAccessories: ["none", "coffee_mug", "laptop"],
     promptThemeInstruction:
-      "Render this person as an everyday office professional. Use smart-casual or business attire, a clean neutral background, and natural warm lighting. Keep the face clearly visible.",
+      "BACKGROUND: Plain warm light grey — no furniture, no environment, nothing behind the character except the background colour. LIGHTING: Soft natural front-fill studio light, minimal shadows. MOOD: Approachable, professional.",
   },
 
   farewell_gift: {
@@ -26,7 +26,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["tshirt", "shirt", "hoodie", "jacket", "suit"],
     allowedAccessories: ["none", "coffee_mug", "laptop"],
     promptThemeInstruction:
-      "Render this person as a beloved departing colleague. Use friendly, warm lighting with a celebratory feel. Keep the face clearly visible.",
+      "BACKGROUND: Soft warm cream white — no environment, no props behind the character. LIGHTING: Warm celebratory glow, gentle and flattering. MOOD: Friendly, upbeat, cheerful.",
   },
 
   remote_team: {
@@ -35,7 +35,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["tshirt", "hoodie", "jacket"],
     allowedAccessories: ["none", "coffee_mug", "laptop"],
     promptThemeInstruction:
-      "Render this person as a remote worker. Show them in a comfortable home-office setting with soft background blur. Keep the face clearly visible.",
+      "BACKGROUND: Muted cool blue-grey — flat and clean, no home-office details, no furniture visible. LIGHTING: Soft diffused neutral light. MOOD: Relaxed, approachable, casual.",
   },
 
   drag_royalty: {
@@ -44,7 +44,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["drag_outfit", "robe"],
     allowedAccessories: ["none", "feather_boa", "microphone"],
     promptThemeInstruction:
-      "Render this person as a glamorous drag royalty character. Include dramatic stage makeup, sequins, a crown or feather boa if specified, and confident stage presence. Use vivid theatrical lighting. Keep the face clearly visible.",
+      "BACKGROUND: Deep jewel purple — flat, no stage or environment visible. LIGHTING: Vivid theatrical front-fill with subtle warm rim light. MOOD: Glamorous, commanding, confident.",
   },
 
   medieval_knights: {
@@ -53,7 +53,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["armour", "robe"],
     allowedAccessories: ["none", "sword", "shield", "staff"],
     promptThemeInstruction:
-      "Render this person as a medieval fantasy knight. Include polished armour, a simple cloak, and a heroic portrait pose. Use warm torchlit fantasy lighting. Keep the face clearly visible.",
+      "BACKGROUND: Dark charcoal grey with very faint stone texture — no castle, no environment visible. LIGHTING: Warm golden torchlight from slightly above-front. MOOD: Heroic, stoic, determined.",
   },
 
   space_rangers: {
@@ -62,7 +62,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["spacesuit", "jacket"],
     allowedAccessories: ["none", "jetpack"],
     promptThemeInstruction:
-      "Render this person as a space ranger. Use a clean retro-futuristic spacesuit, subtle sci-fi details, and a playful heroic posture. Use cool blue-white studio lighting with a subtle starfield backdrop. Keep the face clearly visible.",
+      "BACKGROUND: Deep space navy blue with very faint distant stars — no spacecraft, no planet surface, nothing else visible. LIGHTING: Cool blue-white studio light. MOOD: Heroic, adventurous, determined.",
   },
 
   pirates: {
@@ -71,7 +71,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["jacket", "robe"],
     allowedAccessories: ["none", "sword"],
     promptThemeInstruction:
-      "Render this person as a swashbuckling pirate. Include weathered sea-worn clothing, a dramatic adventurous pose, and warm golden maritime lighting. Keep the face clearly visible.",
+      "BACKGROUND: Warm amber-brown — flat, no ocean or ship environment visible. LIGHTING: Warm golden adventurous light. MOOD: Swashbuckling, bold, charismatic.",
   },
 
   cyberpunk: {
@@ -80,7 +80,7 @@ export const THEME_CONFIGS: Record<GameTheme, ThemeConfig> = {
     allowedOutfits: ["jacket", "hoodie", "spacesuit"],
     allowedAccessories: ["none", "laptop"],
     promptThemeInstruction:
-      "Render this person as a cyberpunk character. Use neon-lit urban aesthetics, dramatic shadows, glowing accents, and a gritty futuristic feel. Keep the face clearly visible.",
+      "BACKGROUND: Very dark near-black with faint cyan neon glow bleeding in from the edges — no city or environment visible. LIGHTING: Dramatic neon underlighting with deep shadows and a cyan rim light. MOOD: Gritty, futuristic, intense.",
   },
 };
 
