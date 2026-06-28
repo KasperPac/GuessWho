@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   getGameSet,
   listCharacters,
+  listPeople,
   createCharacter,
   updateCharacter,
   updateGameSet,
@@ -13,11 +14,12 @@ import {
 } from "@/lib/supabase/db";
 import { evaluateDeck } from "@/lib/game-engine/balance";
 import { generateCharacterPrompt } from "@/lib/game-engine/prompts";
-import type { GameSet, Character, CharacterAttributes, ImageStyle } from "@/types/game";
+import type { GameSet, Character, CharacterAttributes, ImageStyle, Person } from "@/types/game";
 import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import CharacterCard from "@/components/game-sets/CharacterCard";
 import CharacterEditor from "@/components/game-sets/CharacterEditor";
 import BalanceScoreBadge from "@/components/game-sets/BalanceScoreBadge";
+import PeoplePanel from "@/components/people/PeoplePanel";
 
 const ALL_IMAGE_STYLES = Object.keys(IMAGE_STYLE_CONFIGS) as ImageStyle[];
 
@@ -43,11 +45,17 @@ export default function GameSetEditorPage({
   const [generatingCharId, setGeneratingCharId] = useState<string | null>(null);
   const [generateAllProgress, setGenerateAllProgress] = useState<GenerateAllProgress | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [people, setPeople] = useState<Person[]>([]);
 
   async function load() {
-    const [set, chars] = await Promise.all([getGameSet(id), listCharacters(id)]);
+    const [set, chars, ppl] = await Promise.all([
+      getGameSet(id),
+      listCharacters(id),
+      listPeople(),
+    ]);
     setGameSet(set);
     setCharacters(chars);
+    setPeople(ppl);
     setLoading(false);
     if (chars.length > 0) runBalance(chars);
   }
@@ -191,6 +199,30 @@ export default function GameSetEditorPage({
     await runGenerationLoop(toRetry);
   }
 
+  async function handleAssignPerson(person: Person) {
+    if (!selectedId) return;
+    await updateCharacter(selectedId, {
+      referenceImageUrls: person.referenceImageUrls,
+      personId: person.id,
+    });
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.id === selectedId
+          ? { ...c, referenceImageUrls: person.referenceImageUrls, personId: person.id }
+          : c
+      )
+    );
+  }
+
+  function handleUnassignPerson() {
+    if (!selectedId) return;
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.id === selectedId ? { ...c, personId: undefined } : c
+      )
+    );
+  }
+
   if (loading) return <p className="text-gray-500">Loading…</p>;
   if (!gameSet) return <p className="text-red-400">Game set not found.</p>;
 
@@ -316,19 +348,27 @@ export default function GameSetEditorPage({
         </div>
       </div>
 
-      {/* Right: editor panel */}
-      {selectedChar && (
-        <div className="w-80 shrink-0">
+      {/* Right: People panel (always) + Character editor (when selected) */}
+      <div className="w-80 shrink-0 flex flex-col gap-4">
+        <PeoplePanel
+          people={people}
+          selectedCharId={selectedId}
+          onAssign={handleAssignPerson}
+          onPeopleChange={setPeople}
+        />
+        {selectedChar && (
           <CharacterEditor
             character={selectedChar}
             gameSet={gameSet}
+            assignedPerson={people.find((p) => p.id === selectedChar.personId) ?? null}
             onSave={(updates) => handleSaveCharacter(selectedChar.id, updates)}
             onDelete={() => handleDeleteCharacter(selectedChar.id)}
             onClose={() => setSelectedId(null)}
             onGenerateSuccess={(url) => handleGenerateSuccess(selectedChar.id, url)}
+            onUnassign={handleUnassignPerson}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
