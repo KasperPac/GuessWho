@@ -214,6 +214,8 @@ export default function GameSetEditorPage({
     );
   }
 
+  // Only clears the person link — reference photos are kept intentionally (per design spec).
+  // The DB write (personId: null) happens in CharacterEditor.handleUnassign.
   function handleUnassignPerson() {
     if (!selectedId) return;
     setCharacters((prev) =>
@@ -358,6 +360,7 @@ export default function GameSetEditorPage({
         />
         {selectedChar && (
           <CharacterEditor
+            key={`${selectedChar.id}-${selectedChar.personId ?? ""}`}
             character={selectedChar}
             gameSet={gameSet}
             assignedPerson={people.find((p) => p.id === selectedChar.personId) ?? null}
