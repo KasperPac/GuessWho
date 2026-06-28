@@ -242,21 +242,34 @@ export function generateImagePrompt(
     accessoryMap[attributes.accessory],
   ].filter(Boolean);
 
-  const propBlock = props.length > 0
-    ? `\nCostume additions (apply these on top of the person's real appearance):\n${props.map(p => `- ${p}`).join("\n")}`
+  const heldItem = heldAccessories.includes(attributes.accessory)
+    ? accessoryMap[attributes.accessory]
+    : null;
+  const wornProps = [
+    hatMap[attributes.hat],
+    glasseMap[attributes.glasses],
+    !heldItem ? accessoryMap[attributes.accessory] : null,
+  ].filter(Boolean);
+
+  const framing = heldItem
+    ? `FRAMING: The character MUST be shown from the waist up. Their hands and the item they are holding MUST be clearly visible in the lower part of the image. Do not crop the hands or the held item.`
+    : `FRAMING: Front-facing portrait, head and shoulders visible, centred, suitable for a printed game card.`;
+
+  const heldItemBlock = heldItem
+    ? `\nHELD ITEM (REQUIRED — must appear in the image): The character is ${heldItem}. This item must be clearly visible.\n`
     : "";
 
-  const framing = hasHeldItem
-    ? `FRAMING: Front-facing portrait showing the person from the waist up so that the item they are holding is clearly visible. Centred, suitable for a printed game card.`
-    : `FRAMING: Front-facing portrait, head and shoulders visible, centred, suitable for a printed game card.`;
+  const wornBlock = wornProps.length > 0
+    ? `\nAdditional costume details:\n${wornProps.map(p => `- ${p}`).join("\n")}`
+    : "";
 
   return [
     `VISUAL REFERENCE: Use the attached photo as the appearance reference for this character. Match the hair colour, hair length and style, skin tone, eye colour, and general face shape shown in the photo. Apply these features to the illustrated character portrait.`,
     ``,
     `CHARACTER NAME: ${displayName}`,
-    ``,
+    heldItemBlock,
     `OUTFIT: The person is wearing a ${outfit}.`,
-    propBlock,
+    wornBlock,
     ``,
     `SCENE / THEME: ${themeConfig.promptThemeInstruction}`,
     ``,
