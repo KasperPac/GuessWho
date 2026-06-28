@@ -20,6 +20,7 @@ export default function PersonForm({
   const [urls, setUrls] = useState<string[]>(person?.referenceImageUrls ?? []);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,19 +66,31 @@ export default function PersonForm({
       await updatePerson(person.id, { referenceImageUrls: current });
     }
     setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleRemovePhoto(index: number) {
     if (!person) return;
     const updated = urls.filter((_, i) => i !== index);
     setUrls(updated);
-    await updatePerson(person.id, { referenceImageUrls: updated });
+    try {
+      await updatePerson(person.id, { referenceImageUrls: updated });
+    } catch (err) {
+      setUrls(urls);
+      setError(err instanceof Error ? err.message : "Failed to remove photo");
+    }
   }
 
   async function handleDelete() {
     if (!person) return;
-    await deletePerson(person.id);
-    onDelete?.();
+    setDeleting(true);
+    try {
+      await deletePerson(person.id);
+      onDelete?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+      setDeleting(false);
+    }
   }
 
   return (
@@ -97,7 +110,7 @@ export default function PersonForm({
           {urls.length > 0 && (
             <div className="flex gap-1.5 mb-2">
               {urls.map((url, i) => (
-                <div key={i} className="relative w-12 h-12 rounded overflow-hidden border border-gray-600">
+                <div key={url} className="relative w-12 h-12 rounded overflow-hidden border border-gray-600">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   <button
@@ -143,9 +156,10 @@ export default function PersonForm({
         {isEditMode && onDelete && (
           <button
             onClick={handleDelete}
-            className="text-xs text-red-500 hover:text-red-400 px-2 py-1.5 rounded border border-red-900 hover:border-red-700"
+            disabled={deleting}
+            className="text-xs text-red-500 hover:text-red-400 px-2 py-1.5 rounded border border-red-900 hover:border-red-700 disabled:opacity-50"
           >
-            Delete
+            {deleting ? "Deleting…" : "Delete"}
           </button>
         )}
         <button
