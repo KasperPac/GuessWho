@@ -23,13 +23,13 @@ export const IMAGE_STYLE_CONFIGS: Record<ImageStyle, ImageStyleConfig> = {
     label: "Simpsons",
     description: "Yellow skin, overbite, Springfield style.",
     promptModifier:
-      "Render in The Simpsons animation style: yellow skin tone, overbite, simple oval eyes, flat colour fills, Springfield aesthetic.",
+      "Render in a classic American TV cartoon style: bright yellow skin tone, prominent overbite, simple oval eyes, thick black outlines, flat solid colour fills, cheerful suburban aesthetic.",
   },
   pixar: {
     label: "Pixar 3D",
     description: "Warm 3D render, large eyes, friendly proportions.",
     promptModifier:
-      "Render in Pixar 3D animation style: warm polished render, large expressive eyes, soft studio lighting, friendly rounded proportions.",
+      "Render in a polished 3D animated film style: warm studio lighting, large expressive eyes, soft rounded features, friendly proportions, high-quality subsurface skin shading.",
   },
   watercolour: {
     label: "Watercolour",
@@ -47,12 +47,12 @@ export const IMAGE_STYLE_CONFIGS: Record<ImageStyle, ImageStyleConfig> = {
     label: "LEGO Minifigure",
     description: "Blocky yellow figure with printed face.",
     promptModifier:
-      "Render as a LEGO minifigure: blocky yellow plastic body, printed facial features, classic LEGO proportions, studio product lighting.",
+      "Render as a plastic toy minifigure: blocky cylindrical yellow body, simplified printed facial features, signature stubby proportions, studio product photography lighting on a white background.",
   },
   southpark: {
     label: "South Park",
     description: "Flat cutout, simple round head.",
     promptModifier:
-      "Render in South Park animation style: flat 2D cutout aesthetic, simple round head, construction paper texture, limited colour palette.",
+      "Render in a flat 2D paper cutout cartoon style: simple circular head, minimal facial features, construction paper texture, limited flat colour palette, crude but charming aesthetic.",
   },
 };
