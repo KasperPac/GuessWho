@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { Character, CharacterAttributes, GameSet } from "@/types/game";
+import type { Character, CharacterAttributes, GameSet, Person } from "@/types/game";
 import { generateImagePrompt } from "@/lib/game-engine/prompts";
 import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import {
@@ -51,6 +51,8 @@ export default function CharacterEditor({
   onDelete,
   onClose,
   onGenerateSuccess,
+  assignedPerson,
+  onUnassign,
 }: {
   character: Character;
   gameSet: GameSet;
@@ -58,6 +60,8 @@ export default function CharacterEditor({
   onDelete: () => Promise<void>;
   onClose: () => void;
   onGenerateSuccess?: (generatedImageUrl: string) => void;
+  assignedPerson?: Person | null;
+  onUnassign?: () => void;
 }) {
   const [name, setName] = useState(character.displayName);
   const [attrs, setAttrs] = useState<CharacterAttributes>({ ...character.attributes });
@@ -136,6 +140,11 @@ export default function CharacterEditor({
     }
   }
 
+  async function handleUnassign() {
+    await updateCharacter(character.id, { personId: null });
+    onUnassign?.();
+  }
+
   async function handleGenerate() {
     setGenerateError(null);
     setGenerating(true);
@@ -184,6 +193,32 @@ export default function CharacterEditor({
         <h2 className="font-semibold">Edit Character</h2>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-lg leading-none">×</button>
       </div>
+
+      {/* Assigned person badge */}
+      {assignedPerson && (
+        <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0">
+            {assignedPerson.referenceImageUrls[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={assignedPerson.referenceImageUrls[0]}
+                alt={assignedPerson.displayName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="w-full h-full flex items-center justify-center text-gray-500 text-sm">👤</span>
+            )}
+          </div>
+          <span className="text-sm text-gray-200 flex-1 truncate">{assignedPerson.displayName}</span>
+          <button
+            onClick={handleUnassign}
+            className="text-gray-500 hover:text-gray-300 text-xs"
+            title="Unassign person"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Photo upload zone */}
       <div>
