@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase/client";
 import { generateImagePrompt } from "@/lib/game-engine/prompts";
 import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import { GeminiImageProvider } from "@/lib/image-generation/GeminiImageProvider";
-import type { ImageStyle } from "@/types/game";
+import type { ImageStyle, CharacterAttributes } from "@/types/game";
 
 function getProvider(): GeminiImageProvider {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -38,7 +38,13 @@ export async function POST(
 ) {
   const { id: charId } = await params;
 
-  let body: { gameSetId: string; imageStyle: ImageStyle };
+  let body: {
+    gameSetId: string;
+    imageStyle: ImageStyle;
+    currentAttributes?: CharacterAttributes;
+    currentDisplayName?: string;
+    includePhysicalOverrides?: boolean;
+  };
   try {
     body = await request.json();
   } catch {
@@ -76,8 +82,14 @@ export async function POST(
     return NextResponse.json({ error: "Game set not found" }, { status: 404 });
   }
 
-  // 4. Build prompt: photo-first prompt + style modifier
-  const basePrompt = generateImagePrompt(character, gameSet);
+  // 4. Build prompt: use current attrs from client (avoids stale DB data),
+  //    then apply photo-first prompt + optional physical overrides + style modifier
+  const effectiveCharacter = {
+    ...character,
+    ...(body.currentDisplayName ? { displayName: body.currentDisplayName } : {}),
+    ...(body.currentAttributes ? { attributes: body.currentAttributes } : {}),
+  };
+  const basePrompt = generateImagePrompt(effectiveCharacter, gameSet, body.includePhysicalOverrides ?? false);
   const styleModifier = IMAGE_STYLE_CONFIGS[imageStyle].promptModifier;
   const fullPrompt = `${basePrompt}\n\nARTISTIC STYLE: ${styleModifier}`;
 
@@ -123,6 +135,6 @@ export async function POST(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  // 9. Return URL
-  return NextResponse.json({ generatedImageUrl });
+  // 9. Return URL + prompt (so client can display what was actually sent)
+  return NextResponse.json({ generatedImageUrl, prompt: fullPrompt });
 }

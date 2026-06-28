@@ -196,10 +196,12 @@ export function generateCharacterPrompt(
 // ─── Image Generation Prompt ─────────────────────────────────────────────────
 // Separate from generateCharacterPrompt (which is used for balance scoring).
 // Physical appearance comes from the reference photo; only costume/props are specified.
+// Pass includePhysicalOverrides=true to add attribute-driven appearance overrides.
 
 export function generateImagePrompt(
   character: Character,
-  gameSet: GameSet
+  gameSet: GameSet,
+  includePhysicalOverrides = false
 ): string {
   const themeConfig = getThemeConfig(gameSet.theme);
   const { attributes, displayName } = character;
@@ -216,60 +218,94 @@ export function generateImagePrompt(
   };
   const outfit = `${colorMap[attributes.topColor] ?? attributes.topColor} ${outfitMap[attributes.outfitType] ?? attributes.outfitType}`;
 
-  // Accessories (only if present)
-  const accessoryMap: Record<string, string> = {
-    none: "", coffee_mug: "holding a coffee mug", laptop: "holding a laptop",
-    sword: "holding a sword", shield: "holding a shield",
-    staff: "holding a magical staff", jetpack: "wearing a jetpack",
-    feather_boa: "wearing a feather boa", microphone: "holding a microphone",
+  // Required accessories — built as emphatic MUST-APPEAR items
+  const heldAccessoryLabels: Record<string, string> = {
+    coffee_mug: "holding a coffee mug",
+    laptop: "holding a laptop",
+    sword: "holding a sword",
+    shield: "holding a shield",
+    staff: "holding a magical staff",
+    microphone: "holding a microphone",
   };
-  const hatMap: Record<string, string> = {
-    none: "", cap: "wearing a baseball cap", beanie: "wearing a beanie",
-    helmet: "wearing a helmet", crown: "wearing a crown",
-    cowboy_hat: "wearing a cowboy hat", wizard_hat: "wearing a wizard hat",
+  const glassesLabels: Record<string, string> = {
+    round: "round glasses",
+    square: "square glasses",
+    sunglasses: "sunglasses",
   };
-  const glasseMap: Record<string, string> = {
-    none: "", round: "wearing round glasses", square: "wearing square glasses",
-    sunglasses: "wearing sunglasses",
+  const hatLabels: Record<string, string> = {
+    cap: "baseball cap",
+    beanie: "beanie hat",
+    helmet: "helmet",
+    crown: "crown",
+    cowboy_hat: "cowboy hat",
+    wizard_hat: "wizard hat",
   };
 
-  const heldAccessories = ["coffee_mug", "laptop", "sword", "shield", "staff", "microphone"];
-  const hasHeldItem = heldAccessories.includes(attributes.accessory);
-
-  const props = [
-    hatMap[attributes.hat],
-    glasseMap[attributes.glasses],
-    accessoryMap[attributes.accessory],
-  ].filter(Boolean);
-
-  const heldItem = heldAccessories.includes(attributes.accessory)
-    ? accessoryMap[attributes.accessory]
+  const heldItem = heldAccessoryLabels[attributes.accessory] ?? null;
+  const glasses = glassesLabels[attributes.glasses] ?? null;
+  const hat = hatLabels[attributes.hat] ?? null;
+  const wornAccessory =
+    attributes.accessory === "feather_boa" ? "feather boa"
+    : attributes.accessory === "jetpack" ? "jetpack"
     : null;
-  const wornProps = [
-    hatMap[attributes.hat],
-    glasseMap[attributes.glasses],
-    !heldItem ? accessoryMap[attributes.accessory] : null,
-  ].filter(Boolean);
+
+  const requiredItems: string[] = [];
+  if (glasses) requiredItems.push(`GLASSES: The character is wearing ${glasses}. These MUST be clearly visible on their face.`);
+  if (hat) requiredItems.push(`HAT: The character is wearing a ${hat}. This MUST be clearly visible on their head.`);
+  if (heldItem) requiredItems.push(`HELD ITEM: The character is ${heldItem}. This MUST be clearly visible — use waist-up framing so the hands and item are in the image.`);
+  if (wornAccessory) requiredItems.push(`ACCESSORY: The character is wearing a ${wornAccessory}. This MUST be clearly visible.`);
+
+  const accessoriesBlock = requiredItems.length > 0
+    ? `\nREQUIRED ACCESSORIES — ALL OF THESE MUST APPEAR IN THE IMAGE. DO NOT OMIT ANY:\n${requiredItems.map(item => `- ${item}`).join("\n")}`
+    : "";
 
   const framing = heldItem
-    ? `FRAMING: The character MUST be shown from the waist up. Their hands and the item they are holding MUST be clearly visible in the lower part of the image. Do not crop the hands or the held item.`
+    ? `FRAMING: Show the character from the waist up. Both hands and the held item MUST be visible in the lower part of the image. Do not crop the hands or the item.`
     : `FRAMING: Front-facing portrait, head and shoulders visible, centred, suitable for a printed game card.`;
 
-  const heldItemBlock = heldItem
-    ? `\nHELD ITEM (REQUIRED — must appear in the image): The character is ${heldItem}. This item must be clearly visible.\n`
-    : "";
+  // Physical overrides — only included when user opts in
+  let physicalBlock = "";
+  if (includePhysicalOverrides) {
+    const lengthMap: Record<string, string> = { buzz: "buzz-cut", short: "short", medium: "medium-length", long: "long" };
+    const hairColorMap: Record<string, string> = {
+      black: "black", brown: "brown", blonde: "blonde", red: "red",
+      grey: "grey", white: "white", dyed: "brightly dyed", hidden: "hidden under hat",
+    };
+    const textureMap: Record<string, string> = { straight: "straight", wavy: "wavy", curly: "curly", afro: "natural afro", none: "", hidden: "" };
+    const expressionMap: Record<string, string> = {
+      smiling_teeth: "wide open smile showing teeth",
+      smiling_closed: "closed-mouth smile",
+      neutral: "neutral relaxed expression",
+      serious: "serious stern expression",
+    };
+    const facialHairMap: Record<string, string> = {
+      none: "", stubble: "short stubble", moustache: "moustache", goatee: "goatee", beard: "full beard",
+    };
 
-  const wornBlock = wornProps.length > 0
-    ? `\nAdditional costume details:\n${wornProps.map(p => `- ${p}`).join("\n")}`
-    : "";
+    const overrides: string[] = [];
+    if (attributes.hairLength === "bald") {
+      overrides.push("- Hair: completely bald");
+    } else {
+      const parts = [lengthMap[attributes.hairLength], hairColorMap[attributes.hairColor], textureMap[attributes.hairTexture]].filter(Boolean);
+      if (parts.length) overrides.push(`- Hair: ${parts.join(" ")} hair`);
+    }
+    if (attributes.eyeColor !== "not_visible") overrides.push(`- Eyes: ${attributes.eyeColor} eyes`);
+    if (facialHairMap[attributes.facialHair]) overrides.push(`- Facial hair: ${facialHairMap[attributes.facialHair]}`);
+    overrides.push(`- Expression: ${expressionMap[attributes.expression] ?? attributes.expression}`);
+
+    if (overrides.length) {
+      physicalBlock = `\nAPPEARANCE OVERRIDES (apply these on top of the reference photo):\n${overrides.join("\n")}`;
+    }
+  }
 
   return [
-    `VISUAL REFERENCE: Use the attached photo as the appearance reference for this character. Match the hair colour, hair length and style, skin tone, eye colour, and general face shape shown in the photo. Apply these features to the illustrated character portrait.`,
+    `VISUAL REFERENCE: Use the attached photo as the appearance reference for this character. Match the hair colour, hair style, skin tone, eye colour, and general face shape shown in the photo.`,
+    physicalBlock,
     ``,
     `CHARACTER NAME: ${displayName}`,
-    heldItemBlock,
-    `OUTFIT: The person is wearing a ${outfit}.`,
-    wornBlock,
+    ``,
+    `OUTFIT: The character is wearing a ${outfit}.`,
+    accessoriesBlock,
     ``,
     `SCENE / THEME: ${themeConfig.promptThemeInstruction}`,
     ``,

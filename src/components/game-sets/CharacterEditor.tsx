@@ -70,6 +70,9 @@ export default function CharacterEditor({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [physicalOverride, setPhysicalOverride] = useState(false);
+  const [lastUsedPrompt, setLastUsedPrompt] = useState<string | null>(null);
+  const [showLastPrompt, setShowLastPrompt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function setAttr<K extends keyof CharacterAttributes>(key: K, value: CharacterAttributes[K]) {
@@ -140,13 +143,23 @@ export default function CharacterEditor({
       const res = await fetch(`/api/characters/${character.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameSetId: character.gameSetId, imageStyle: gameSet.imageStyle }),
+        body: JSON.stringify({
+          gameSetId: character.gameSetId,
+          imageStyle: gameSet.imageStyle,
+          currentAttributes: attrs,
+          currentDisplayName: name,
+          includePhysicalOverrides: physicalOverride,
+        }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
         throw new Error(error ?? `HTTP ${res.status}`);
       }
-      const { generatedImageUrl } = await res.json();
+      const { generatedImageUrl, prompt: usedPrompt } = await res.json();
+      if (usedPrompt) {
+        setLastUsedPrompt(usedPrompt);
+        setShowLastPrompt(true);
+      }
       onGenerateSuccess?.(generatedImageUrl);
     } catch (err: unknown) {
       setGenerateError(err instanceof Error ? err.message : "Generation failed");
@@ -157,7 +170,8 @@ export default function CharacterEditor({
 
   const basePreviewPrompt = generateImagePrompt(
     { ...character, displayName: name, attributes: attrs },
-    gameSet
+    gameSet,
+    physicalOverride
   );
   const styleModifier = IMAGE_STYLE_CONFIGS[gameSet.imageStyle]?.promptModifier ?? "";
   const previewPrompt = `${basePreviewPrompt}\n\nARTISTIC STYLE: ${styleModifier}`;
@@ -234,18 +248,13 @@ export default function CharacterEditor({
         />
       </Field>
 
+      {/* Costume — always active */}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Hair Length">
-          <AttrSelect value={attrs.hairLength} options={HAIR_LENGTHS} onChange={(v) => setAttr("hairLength", v)} />
+        <Field label="Top Color">
+          <AttrSelect value={attrs.topColor} options={TOP_COLORS} onChange={(v) => setAttr("topColor", v)} />
         </Field>
-        <Field label="Hair Color">
-          <AttrSelect value={attrs.hairColor} options={HAIR_COLORS} onChange={(v) => setAttr("hairColor", v)} />
-        </Field>
-        <Field label="Hair Texture">
-          <AttrSelect value={attrs.hairTexture} options={HAIR_TEXTURES} onChange={(v) => setAttr("hairTexture", v)} />
-        </Field>
-        <Field label="Facial Hair">
-          <AttrSelect value={attrs.facialHair} options={FACIAL_HAIRS} onChange={(v) => setAttr("facialHair", v)} />
+        <Field label="Outfit">
+          <AttrSelect value={attrs.outfitType} options={OUTFIT_TYPES} onChange={(v) => setAttr("outfitType", v)} />
         </Field>
         <Field label="Glasses">
           <AttrSelect value={attrs.glasses} options={GLASSES} onChange={(v) => setAttr("glasses", v)} />
@@ -253,31 +262,56 @@ export default function CharacterEditor({
         <Field label="Hat">
           <AttrSelect value={attrs.hat} options={HATS} onChange={(v) => setAttr("hat", v)} />
         </Field>
-        <Field label="Eye Color">
-          <AttrSelect value={attrs.eyeColor} options={EYE_COLORS} onChange={(v) => setAttr("eyeColor", v)} />
-        </Field>
-        <Field label="Expression">
-          <AttrSelect value={attrs.expression} options={EXPRESSIONS} onChange={(v) => setAttr("expression", v)} />
-        </Field>
-        <Field label="Top Color">
-          <AttrSelect value={attrs.topColor} options={TOP_COLORS} onChange={(v) => setAttr("topColor", v)} />
-        </Field>
-        <Field label="Outfit">
-          <AttrSelect value={attrs.outfitType} options={OUTFIT_TYPES} onChange={(v) => setAttr("outfitType", v)} />
-        </Field>
       </div>
 
       <Field label="Accessory">
         <AttrSelect value={attrs.accessory} options={ACCESSORIES} onChange={(v) => setAttr("accessory", v)} />
       </Field>
 
-      {/* Prompt preview */}
+      {/* Physical appearance — disabled by default, driven by reference photo */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Physical Appearance</span>
+          <button
+            onClick={() => setPhysicalOverride(!physicalOverride)}
+            className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+              physicalOverride
+                ? "bg-indigo-600 border-indigo-500 text-white"
+                : "bg-transparent border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-400"
+            }`}
+          >
+            {physicalOverride ? "Overriding photo" : "From photo"}
+          </button>
+        </div>
+        <div className={`grid grid-cols-2 gap-3 transition-opacity ${physicalOverride ? "" : "opacity-40 pointer-events-none select-none"}`}>
+          <Field label="Hair Length">
+            <AttrSelect value={attrs.hairLength} options={HAIR_LENGTHS} onChange={(v) => setAttr("hairLength", v)} />
+          </Field>
+          <Field label="Hair Color">
+            <AttrSelect value={attrs.hairColor} options={HAIR_COLORS} onChange={(v) => setAttr("hairColor", v)} />
+          </Field>
+          <Field label="Hair Texture">
+            <AttrSelect value={attrs.hairTexture} options={HAIR_TEXTURES} onChange={(v) => setAttr("hairTexture", v)} />
+          </Field>
+          <Field label="Facial Hair">
+            <AttrSelect value={attrs.facialHair} options={FACIAL_HAIRS} onChange={(v) => setAttr("facialHair", v)} />
+          </Field>
+          <Field label="Eye Color">
+            <AttrSelect value={attrs.eyeColor} options={EYE_COLORS} onChange={(v) => setAttr("eyeColor", v)} />
+          </Field>
+          <Field label="Expression">
+            <AttrSelect value={attrs.expression} options={EXPRESSIONS} onChange={(v) => setAttr("expression", v)} />
+          </Field>
+        </div>
+      </div>
+
+      {/* Prompt preview (based on current unsaved state) */}
       <div>
         <button
           onClick={() => setShowPrompt(!showPrompt)}
           className="text-xs text-indigo-400 hover:text-indigo-300"
         >
-          {showPrompt ? "Hide prompt ↑" : "Preview prompt ↓"}
+          {showPrompt ? "Hide preview prompt ↑" : "Preview prompt ↓"}
         </button>
         {showPrompt && (
           <pre className="mt-2 text-xs text-gray-400 bg-gray-800 rounded p-3 whitespace-pre-wrap max-h-48 overflow-y-auto">
@@ -285,6 +319,23 @@ export default function CharacterEditor({
           </pre>
         )}
       </div>
+
+      {/* Last used prompt (actual prompt sent to Gemini) */}
+      {lastUsedPrompt && (
+        <div>
+          <button
+            onClick={() => setShowLastPrompt(!showLastPrompt)}
+            className="text-xs text-emerald-500 hover:text-emerald-400"
+          >
+            {showLastPrompt ? "Hide last sent prompt ↑" : "Last sent prompt ↓"}
+          </button>
+          {showLastPrompt && (
+            <pre className="mt-2 text-xs text-gray-400 bg-gray-800 rounded p-3 whitespace-pre-wrap max-h-48 overflow-y-auto">
+              {lastUsedPrompt}
+            </pre>
+          )}
+        </div>
+      )}
 
       {generateError && (
         <p className="text-xs text-red-400">{generateError}</p>
