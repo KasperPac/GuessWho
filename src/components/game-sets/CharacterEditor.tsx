@@ -141,8 +141,12 @@ export default function CharacterEditor({
   }
 
   async function handleUnassign() {
-    await updateCharacter(character.id, { personId: null });
-    onUnassign?.();
+    try {
+      await updateCharacter(character.id, { personId: null });
+      onUnassign?.();
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : "Failed to unassign person");
+    }
   }
 
   async function handleGenerate() {
