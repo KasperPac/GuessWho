@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { Character, CharacterAttributes, GameSet } from "@/types/game";
 import { generateImagePrompt } from "@/lib/game-engine/prompts";
+import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import {
   HAIR_LENGTHS, HAIR_COLORS, HAIR_TEXTURES, FACIAL_HAIRS,
   GLASSES, HATS, EYE_COLORS, EXPRESSIONS, TOP_COLORS,
@@ -154,10 +155,12 @@ export default function CharacterEditor({
     }
   }
 
-  const previewPrompt = generateImagePrompt(
+  const basePreviewPrompt = generateImagePrompt(
     { ...character, displayName: name, attributes: attrs },
     gameSet
   );
+  const styleModifier = IMAGE_STYLE_CONFIGS[gameSet.imageStyle]?.promptModifier ?? "";
+  const previewPrompt = `${basePreviewPrompt}\n\nARTISTIC STYLE: ${styleModifier}`;
 
   const canGenerate = referenceImageUrls.length > 0;
 

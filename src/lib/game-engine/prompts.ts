@@ -233,6 +233,9 @@ export function generateImagePrompt(
     sunglasses: "wearing sunglasses",
   };
 
+  const heldAccessories = ["coffee_mug", "laptop", "sword", "shield", "staff", "microphone"];
+  const hasHeldItem = heldAccessories.includes(attributes.accessory);
+
   const props = [
     hatMap[attributes.hat],
     glasseMap[attributes.glasses],
@@ -242,6 +245,10 @@ export function generateImagePrompt(
   const propBlock = props.length > 0
     ? `\nCostume additions (apply these on top of the person's real appearance):\n${props.map(p => `- ${p}`).join("\n")}`
     : "";
+
+  const framing = hasHeldItem
+    ? `FRAMING: Front-facing portrait showing the person from the waist up so that the item they are holding is clearly visible. Centred, suitable for a printed game card.`
+    : `FRAMING: Front-facing portrait, head and shoulders visible, centred, suitable for a printed game card.`;
 
   return [
     `PHOTO REFERENCE: The attached photo shows the real person. Preserve their actual facial likeness exactly — face shape, skin tone, hair (colour, length, and texture), natural expression, and eye colour. Do not alter their physical appearance.`,
@@ -253,7 +260,7 @@ export function generateImagePrompt(
     ``,
     `SCENE / THEME: ${themeConfig.promptThemeInstruction}`,
     ``,
-    `FRAMING: Front-facing portrait, head and shoulders visible, centred, suitable for a printed game card.`,
+    framing,
   ].join("\n");
 }
 
