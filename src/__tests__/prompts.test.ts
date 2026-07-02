@@ -140,10 +140,11 @@ describe("generateAllPrompts", () => {
 });
 
 describe("generateImagePrompt — text-only characters (no reference photo)", () => {
-  it("does not reference an attached photo when there are no reference images", () => {
+  it("does not reference a photo anywhere in the prompt when there are no reference images", () => {
     const char: Character = { ...MOCK_CHARACTERS[0], referenceImageUrls: [] };
     const prompt = generateImagePrompt(char, MOCK_GAME_SET);
     expect(prompt.toLowerCase()).not.toContain("use the attached photo");
+    expect(prompt.toLowerCase()).not.toContain("reference photo");
   });
 
   it("forces physical appearance overrides into the prompt when there is no reference photo", () => {

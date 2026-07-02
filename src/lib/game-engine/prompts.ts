@@ -296,7 +296,10 @@ export function generateImagePrompt(
     overrides.push(`- Expression: ${expressionMap[attributes.expression] ?? attributes.expression}`);
 
     if (overrides.length) {
-      physicalBlock = `\nAPPEARANCE OVERRIDES (apply these on top of the reference photo):\n${overrides.join("\n")}`;
+      const overridesHeading = hasReferencePhoto
+        ? "APPEARANCE OVERRIDES (apply these on top of the reference photo):"
+        : "APPEARANCE (no photo is available — apply these details exactly):";
+      physicalBlock = `\n${overridesHeading}\n${overrides.join("\n")}`;
     }
   }
 
@@ -315,7 +318,7 @@ export function generateImagePrompt(
 
   const visualReferenceLine = hasReferencePhoto
     ? `VISUAL REFERENCE: Use the attached photo as the appearance reference. Match the hair colour, hair style, skin tone, eye colour, and general face shape shown in the photo.`
-    : `VISUAL REFERENCE: No reference photo is provided — invent the character's full appearance strictly from the details below.`;
+    : `VISUAL REFERENCE: No photo of the character is provided — invent the character's full appearance strictly from the details below.`;
 
   return [
     compositionBlock,
