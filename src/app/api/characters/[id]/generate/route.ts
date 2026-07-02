@@ -68,14 +68,6 @@ export async function POST(
     return NextResponse.json({ error: "Character not found" }, { status: 404 });
   }
 
-  // 2. Validate reference images
-  if (character.referenceImageUrls.length === 0) {
-    return NextResponse.json(
-      { error: "Upload at least one reference photo first" },
-      { status: 400 }
-    );
-  }
-
   // 3. Fetch game set
   const gameSet = await getGameSet(gameSetId);
   if (!gameSet) {

@@ -1,4 +1,4 @@
-import { generateCharacterPrompt, generateAllPrompts } from "@/lib/game-engine/prompts";
+import { generateCharacterPrompt, generateAllPrompts, generateImagePrompt } from "@/lib/game-engine/prompts";
 import { MOCK_CHARACTERS, MOCK_GAME_SET } from "@/lib/game-engine/mockDeck";
 import type { Character, GameSet } from "@/types/game";
 import { ALL_THEMES } from "@/lib/game-engine/themes";
@@ -136,5 +136,35 @@ describe("generateAllPrompts", () => {
     const uniqueValues = new Set(values);
     // All 24 characters in the mock deck have different attributes — prompts should differ
     expect(uniqueValues.size).toBe(MOCK_CHARACTERS.length);
+  });
+});
+
+describe("generateImagePrompt — text-only characters (no reference photo)", () => {
+  it("does not reference an attached photo when there are no reference images", () => {
+    const char: Character = { ...MOCK_CHARACTERS[0], referenceImageUrls: [] };
+    const prompt = generateImagePrompt(char, MOCK_GAME_SET);
+    expect(prompt.toLowerCase()).not.toContain("use the attached photo");
+  });
+
+  it("forces physical appearance overrides into the prompt when there is no reference photo", () => {
+    const char: Character = {
+      ...MOCK_CHARACTERS[0],
+      referenceImageUrls: [],
+      attributes: { ...MOCK_CHARACTERS[0].attributes, hairColor: "red", hairLength: "long" },
+    };
+    const prompt = generateImagePrompt(char, MOCK_GAME_SET, false);
+    expect(prompt).toMatch(/red.*hair|hair.*red/i);
+  });
+
+  it("still includes the VISUAL REFERENCE photo instruction when a reference photo is present", () => {
+    const char: Character = { ...MOCK_CHARACTERS[0], referenceImageUrls: ["https://example.com/a.jpg"] };
+    const prompt = generateImagePrompt(char, MOCK_GAME_SET);
+    expect(prompt.toLowerCase()).toContain("use the attached photo");
+  });
+
+  it("does not force physical overrides when a reference photo is present and includePhysicalOverrides is false", () => {
+    const char: Character = { ...MOCK_CHARACTERS[0], referenceImageUrls: ["https://example.com/a.jpg"] };
+    const prompt = generateImagePrompt(char, MOCK_GAME_SET, false);
+    expect(prompt).not.toContain("APPEARANCE OVERRIDES");
   });
 });
