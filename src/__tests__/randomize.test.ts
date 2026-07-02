@@ -2,7 +2,36 @@ import { planNewCharacters, resolveDuplicates, planMakePlayable } from "@/lib/ga
 import { MOCK_CHARACTERS, MOCK_GAME_SET } from "@/lib/game-engine/mockDeck";
 import { GAMEPLAY_TRAITS } from "@/lib/game-engine/attributes";
 import { getThemeConfig } from "@/lib/game-engine/themes";
-import type { Character, CharacterDraft, GameSet } from "@/types/game";
+import type { Character, CharacterAttributes, CharacterDraft, GameSet } from "@/types/game";
+
+// Mirrors the hardcoded defaults handleAddCharacter uses in the game set editor page,
+// which several characters end up sharing verbatim if a user clicks "+ Add Character"
+// repeatedly without customizing each one before running Make Playable.
+const ADD_CHARACTER_DEFAULT_ATTRS: CharacterAttributes = {
+  hairLength: "short",
+  hairColor: "brown",
+  hairTexture: "straight",
+  facialHair: "none",
+  glasses: "none",
+  hat: "none",
+  eyeColor: "brown",
+  expression: "neutral",
+  topColor: "blue",
+  outfitType: "shirt",
+  accessory: "none",
+};
+
+function defaultAddedCharacter(id: string): Character {
+  return {
+    id,
+    gameSetId: MOCK_GAME_SET.id,
+    displayName: id,
+    referenceImageUrls: [],
+    attributes: { ...ADD_CHARACTER_DEFAULT_ATTRS },
+    createdAt: "",
+    updatedAt: "",
+  };
+}
 
 describe("planNewCharacters", () => {
   it("returns an empty array when the deck already has 24 characters", () => {
@@ -131,6 +160,21 @@ describe("resolveDuplicates", () => {
         cloneChar(c, `${c.id}-b-${trial}`),
       ]);
       const { unresolved } = resolveDuplicates(duplicated, [], MOCK_GAME_SET);
+      expect(unresolved.length).toBe(0);
+    }
+  });
+
+  // Regression test: several characters sharing the exact "+ Add Character" defaults
+  // (a common real scenario — adding a few blank characters before customizing them)
+  // must fully resolve, not just clear the first collision and leave later ones
+  // colliding with a THIRD character that a purely pairwise fix never checked against.
+  it("fully resolves several characters that all share the + Add Character defaults", () => {
+    for (let trial = 0; trial < 5; trial++) {
+      const chars = Array.from({ length: 8 }, (_, i) =>
+        defaultAddedCharacter(`default-${trial}-${i}`)
+      );
+      const { edits, unresolved } = resolveDuplicates(chars, [], MOCK_GAME_SET);
+      expect(edits.length).toBeGreaterThan(0);
       expect(unresolved.length).toBe(0);
     }
   });

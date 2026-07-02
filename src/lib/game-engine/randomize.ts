@@ -126,10 +126,54 @@ function toFakeCharacter(w: WorkingChar, gameSetId: string): Character {
   };
 }
 
+function pickLeastUsedValue(
+  trait: GameplayTrait,
+  pool: readonly string[],
+  working: WorkingChar[]
+): string {
+  const counts = new Map<string, number>();
+  for (const w of working) {
+    const value = (w.attributes as Record<string, string>)[trait];
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  let minCount = Infinity;
+  let candidates: string[] = [];
+  for (const value of pool) {
+    const count = counts.get(value) ?? 0;
+    if (count < minCount) {
+      minCount = count;
+      candidates = [value];
+    } else if (count === minCount) {
+      candidates.push(value);
+    }
+  }
+
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function isClearOfWholeDeck(
+  target: WorkingChar,
+  attributes: CharacterAttributes,
+  targetIndex: number,
+  working: WorkingChar[],
+  gameSetId: string
+): boolean {
+  const candidate = toFakeCharacter({ ...target, attributes }, gameSetId);
+  for (let i = 0; i < working.length; i++) {
+    if (i === targetIndex) continue;
+    const peer = toFakeCharacter(working[i], gameSetId);
+    if (computeSimilarityScore(candidate, peer).score >= SIMILARITY_CRITICAL) return false;
+  }
+  return true;
+}
+
 function attemptResolve(
   target: WorkingChar,
+  targetIndex: number,
   other: WorkingChar,
-  gameSet: GameSet
+  gameSet: GameSet,
+  working: WorkingChar[]
 ): { changes: CharacterEdit["changes"]; attributes: CharacterAttributes } | null {
   const changes: CharacterEdit["changes"] = [];
   const attributes: CharacterAttributes = { ...target.attributes };
@@ -143,16 +187,19 @@ function attemptResolve(
     if (pool.length === 0) continue;
 
     const from = attrs[trait];
-    const to = pool[Math.floor(Math.random() * pool.length)];
+    // Prefer the value currently least represented across the whole deck, rather than a
+    // flat random pick — otherwise two independently-mutated characters can land on the
+    // same new combination and collide with each other, especially when many characters
+    // start out identical (e.g. several added via "+ Add Character" without editing).
+    const to = pickLeastUsedValue(trait, pool, working);
     attrs[trait] = to;
     changes.push({ trait, from, to });
 
-    const score = computeSimilarityScore(
-      toFakeCharacter({ ...target, attributes }, gameSet.id),
-      toFakeCharacter(other, gameSet.id)
-    ).score;
-
-    if (score < SIMILARITY_CRITICAL) {
+    // Stopping as soon as this mutation clears the ONE pair we set out to fix isn't
+    // enough — it can leave (or create) a critical collision with a THIRD character.
+    // Keep mutating additional mutable traits until the candidate is clear of every
+    // other character in the deck, not just `other`.
+    if (isClearOfWholeDeck(target, attributes, targetIndex, working, gameSet.id)) {
       return { changes, attributes };
     }
   }
@@ -208,7 +255,7 @@ export function resolveDuplicates(
     const other = target === a ? b : a;
     const targetIndex = target === a ? aIndex : bIndex;
 
-    const result = attemptResolve(target, other, gameSet);
+    const result = attemptResolve(target, targetIndex, other, gameSet, working);
 
     if (result) {
       working[targetIndex] = { ...target, attributes: result.attributes };
