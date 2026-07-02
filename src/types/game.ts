@@ -143,6 +143,13 @@ export type CharacterEdit = {
   changes: { trait: keyof CharacterAttributes; from: string; to: string }[];
 };
 
+export type MakePlayablePlan = {
+  newCharacters: CharacterDraft[];
+  edits: CharacterEdit[];
+  unresolved: DeckWarning[];
+  willBePlayable: boolean;
+};
+
 // ─── Balance ───────────────────────────────────────────────────────────────
 
 export type WarningSeverity = "info" | "warning" | "critical";

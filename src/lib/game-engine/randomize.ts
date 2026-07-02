@@ -1,4 +1,4 @@
-import type { Character, CharacterAttributes, CharacterDraft, CharacterEdit, DeckWarning, GameSet } from "@/types/game";
+import type { Character, CharacterAttributes, CharacterDraft, CharacterEdit, DeckWarning, GameSet, MakePlayablePlan } from "@/types/game";
 import {
   GAMEPLAY_TRAITS,
   GameplayTrait,
@@ -14,7 +14,7 @@ import {
   TOP_COLORS,
 } from "./attributes";
 import { getThemeConfig } from "./themes";
-import { REQUIRED_DECK_SIZE } from "./balance";
+import { REQUIRED_DECK_SIZE, evaluateDeck } from "./balance";
 import { pickRandomName } from "./names";
 import { findSimilarPairs, computeSimilarityScore, SIMILARITY_CRITICAL } from "./similarity";
 
@@ -258,4 +258,40 @@ export function resolveDuplicates(
   });
 
   return { updatedDrafts, edits: Array.from(editsByCharId.values()), unresolved };
+}
+
+// ─── Combined Planner ─────────────────────────────────────────────────────────
+
+export function planMakePlayable(characters: Character[], gameSet: GameSet): MakePlayablePlan {
+  const drafts = planNewCharacters(characters, gameSet);
+  const { updatedDrafts, edits, unresolved } = resolveDuplicates(characters, drafts, gameSet);
+
+  const editsByCharId = new Map(edits.map((e) => [e.characterId, e]));
+  const projectedExisting: Character[] = characters.map((c) => {
+    const edit = editsByCharId.get(c.id);
+    if (!edit) return c;
+    const attributes: CharacterAttributes = { ...c.attributes };
+    const attrs = attributes as Record<string, string>;
+    for (const change of edit.changes) attrs[change.trait] = change.to;
+    return { ...c, attributes };
+  });
+
+  const projectedDrafts: Character[] = updatedDrafts.map((d, i) => ({
+    id: `new-${i}`,
+    gameSetId: d.gameSetId,
+    displayName: d.displayName,
+    referenceImageUrls: d.referenceImageUrls,
+    attributes: d.attributes,
+    createdAt: "",
+    updatedAt: "",
+  }));
+
+  const report = evaluateDeck([...projectedExisting, ...projectedDrafts]);
+
+  return {
+    newCharacters: updatedDrafts,
+    edits,
+    unresolved,
+    willBePlayable: report.isPlayable,
+  };
 }

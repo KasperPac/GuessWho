@@ -1,4 +1,4 @@
-import { planNewCharacters, resolveDuplicates } from "@/lib/game-engine/randomize";
+import { planNewCharacters, resolveDuplicates, planMakePlayable } from "@/lib/game-engine/randomize";
 import { MOCK_CHARACTERS, MOCK_GAME_SET } from "@/lib/game-engine/mockDeck";
 import { GAMEPLAY_TRAITS } from "@/lib/game-engine/attributes";
 import { getThemeConfig } from "@/lib/game-engine/themes";
@@ -112,5 +112,32 @@ describe("resolveDuplicates", () => {
       expect(warning.severity).toBe("critical");
       expect(warning.affectedCharacterIds?.length).toBe(2);
     }
+  });
+});
+
+describe("planMakePlayable", () => {
+  it("fills the deck to 24 characters", () => {
+    const partial = MOCK_CHARACTERS.slice(0, 20);
+    const plan = planMakePlayable(partial, MOCK_GAME_SET);
+    expect(partial.length + plan.newCharacters.length).toBe(24);
+  });
+
+  it("reports willBePlayable as a boolean", () => {
+    const plan = planMakePlayable(MOCK_CHARACTERS.slice(0, 20), MOCK_GAME_SET);
+    expect(typeof plan.willBePlayable).toBe("boolean");
+  });
+
+  it("produces edits for a deliberately duplicated deck", () => {
+    const duplicated = MOCK_CHARACTERS.slice(0, 12).flatMap((c) => [
+      cloneChar(c, `${c.id}-a`),
+      cloneChar(c, `${c.id}-b`),
+    ]);
+    const plan = planMakePlayable(duplicated, MOCK_GAME_SET);
+    expect(plan.edits.length).toBeGreaterThan(0);
+  });
+
+  it("returns no new characters when the deck is already at 24", () => {
+    const plan = planMakePlayable(MOCK_CHARACTERS, MOCK_GAME_SET);
+    expect(plan.newCharacters).toEqual([]);
   });
 });
