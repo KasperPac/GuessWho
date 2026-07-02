@@ -133,17 +133,18 @@ function attemptResolve(
 ): { changes: CharacterEdit["changes"]; attributes: CharacterAttributes } | null {
   const changes: CharacterEdit["changes"] = [];
   const attributes: CharacterAttributes = { ...target.attributes };
+  const attrs = attributes as Record<string, string>;
 
   for (const trait of MUTABLE_TRAITS) {
     const otherValue = other.attributes[trait] as string;
-    if ((attributes as Record<string, string>)[trait] !== otherValue) continue; // not shared — mutating it won't reduce similarity
+    if (attrs[trait] !== otherValue) continue; // not shared — mutating it won't reduce similarity
 
     const pool = poolForTrait(trait, gameSet).filter((v) => v !== otherValue);
     if (pool.length === 0) continue;
 
-    const from = (attributes as Record<string, string>)[trait];
+    const from = attrs[trait];
     const to = pool[Math.floor(Math.random() * pool.length)];
-    (attributes as Record<string, string>)[trait] = to;
+    attrs[trait] = to;
     changes.push({ trait, from, to });
 
     const score = computeSimilarityScore(
@@ -197,10 +198,10 @@ export function resolveDuplicates(
     const a = working[aIndex];
     const b = working[bIndex];
 
-    const targetIndex = b.kind === "draft" ? bIndex : aIndex;
-    const otherIndex = targetIndex === aIndex ? bIndex : aIndex;
-    const target = working[targetIndex];
-    const other = working[otherIndex];
+    const target = a.kind === "draft" ? a : b.kind === "draft" ? b : a;
+    const other = target === a ? b : a;
+    const targetIndex = target === a ? aIndex : bIndex;
+    const otherIndex = target === a ? bIndex : aIndex;
 
     const result = attemptResolve(target, other, gameSet);
 
@@ -218,7 +219,7 @@ export function resolveDuplicates(
     } else {
       unresolved.push({
         severity: "critical",
-        message: `"${a.displayName}" and "${b.displayName}" are ${pair.similarityScore}% similar and could not be resolved without changing hair or facial features.`,
+        message: `"${a.displayName}" and "${b.displayName}" are ${pair.similarityScore}% similar and could not be resolved without changing hair, eyes, expression, or facial hair.`,
         affectedCharacterIds: [
           a.kind === "existing" ? a.id : `new:${a.index}`,
           b.kind === "existing" ? b.id : `new:${b.index}`,
@@ -226,6 +227,28 @@ export function resolveDuplicates(
       });
       skipPairKeys.add(pairKey);
     }
+  }
+
+  // Final sweep: report any critical pair still remaining (e.g. the iteration cap was
+  // reached before every pair was processed) that we haven't already reported.
+  const finalFakeChars = working.map((w) => toFakeCharacter(w, gameSet.id));
+  const finalPairs = findSimilarPairs(finalFakeChars, SIMILARITY_CRITICAL);
+  for (const pair of finalPairs) {
+    const pairKey = `${pair.characterAId}|${pair.characterBId}`;
+    if (skipPairKeys.has(pairKey)) continue;
+    skipPairKeys.add(pairKey);
+    const aIndex = working.findIndex((w) => workingTag(w) === pair.characterAId);
+    const bIndex = working.findIndex((w) => workingTag(w) === pair.characterBId);
+    const a = working[aIndex];
+    const b = working[bIndex];
+    unresolved.push({
+      severity: "critical",
+      message: `"${a.displayName}" and "${b.displayName}" are ${pair.similarityScore}% similar and could not be resolved within the iteration budget.`,
+      affectedCharacterIds: [
+        a.kind === "existing" ? a.id : `new:${a.index}`,
+        b.kind === "existing" ? b.id : `new:${b.index}`,
+      ],
+    });
   }
 
   const updatedDrafts = draftCharacters.map((d, index) => {
