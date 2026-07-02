@@ -132,6 +132,11 @@ export type Person = {
   updatedAt: string;
 };
 
+export type CharacterDraft = Pick<
+  Character,
+  "gameSetId" | "displayName" | "referenceImageUrls" | "attributes"
+>;
+
 // ─── Balance ───────────────────────────────────────────────────────────────
 
 export type WarningSeverity = "info" | "warning" | "critical";
