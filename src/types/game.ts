@@ -132,6 +132,24 @@ export type Person = {
   updatedAt: string;
 };
 
+export type CharacterDraft = Pick<
+  Character,
+  "gameSetId" | "displayName" | "referenceImageUrls" | "attributes"
+>;
+
+export type CharacterEdit = {
+  characterId: string;
+  displayName: string;
+  changes: { trait: keyof CharacterAttributes; from: string; to: string }[];
+};
+
+export type MakePlayablePlan = {
+  newCharacters: CharacterDraft[];
+  edits: CharacterEdit[];
+  unresolved: DeckWarning[];
+  willBePlayable: boolean;
+};
+
 // ─── Balance ───────────────────────────────────────────────────────────────
 
 export type WarningSeverity = "info" | "warning" | "critical";

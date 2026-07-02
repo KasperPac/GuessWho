@@ -205,6 +205,8 @@ export function generateImagePrompt(
 ): string {
   const themeConfig = getThemeConfig(gameSet.theme);
   const { attributes, displayName } = character;
+  const hasReferencePhoto = character.referenceImageUrls.length > 0;
+  const applyPhysicalOverrides = includePhysicalOverrides || !hasReferencePhoto;
 
   // Outfit
   const colorMap: Record<string, string> = {
@@ -265,7 +267,7 @@ export function generateImagePrompt(
 
   // Physical overrides — only included when user opts in
   let physicalBlock = "";
-  if (includePhysicalOverrides) {
+  if (applyPhysicalOverrides) {
     const lengthMap: Record<string, string> = { buzz: "buzz-cut", short: "short", medium: "medium-length", long: "long" };
     const hairColorMap: Record<string, string> = {
       black: "black", brown: "brown", blonde: "blonde", red: "red",
@@ -294,7 +296,10 @@ export function generateImagePrompt(
     overrides.push(`- Expression: ${expressionMap[attributes.expression] ?? attributes.expression}`);
 
     if (overrides.length) {
-      physicalBlock = `\nAPPEARANCE OVERRIDES (apply these on top of the reference photo):\n${overrides.join("\n")}`;
+      const overridesHeading = hasReferencePhoto
+        ? "APPEARANCE OVERRIDES (apply these on top of the reference photo):"
+        : "APPEARANCE (no photo is available — apply these details exactly):";
+      physicalBlock = `\n${overridesHeading}\n${overrides.join("\n")}`;
     }
   }
 
@@ -311,12 +316,16 @@ export function generateImagePrompt(
 - No three-quarter angle, no tilt, no profile view. No extreme close-up. No wide shot.
 - Camera at eye level — no upward or downward angle.`;
 
+  const visualReferenceLine = hasReferencePhoto
+    ? `VISUAL REFERENCE: Use the attached photo as the appearance reference. Match the hair colour, hair style, skin tone, eye colour, and general face shape shown in the photo.`
+    : `VISUAL REFERENCE: No photo of the character is provided — invent the character's full appearance strictly from the details below.`;
+
   return [
     compositionBlock,
     ``,
     `THEME: ${themeConfig.promptThemeInstruction}`,
     ``,
-    `VISUAL REFERENCE: Use the attached photo as the appearance reference. Match the hair colour, hair style, skin tone, eye colour, and general face shape shown in the photo.`,
+    visualReferenceLine,
     physicalBlock,
     ``,
     `CHARACTER NAME: ${displayName}`,

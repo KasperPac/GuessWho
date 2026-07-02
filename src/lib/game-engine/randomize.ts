@@ -1,0 +1,363 @@
+import type { Character, CharacterAttributes, CharacterDraft, CharacterEdit, DeckWarning, GameSet, MakePlayablePlan } from "@/types/game";
+import {
+  GAMEPLAY_TRAITS,
+  GameplayTrait,
+  IDEAL_TRAIT_RANGE,
+  HAIR_LENGTHS,
+  HAIR_COLORS,
+  HAIR_TEXTURES,
+  FACIAL_HAIRS,
+  GLASSES,
+  HATS,
+  EYE_COLORS,
+  EXPRESSIONS,
+  TOP_COLORS,
+} from "./attributes";
+import { getThemeConfig } from "./themes";
+import { REQUIRED_DECK_SIZE, evaluateDeck } from "./balance";
+import { pickRandomName } from "./names";
+import { findSimilarPairs, computeSimilarityScore, SIMILARITY_CRITICAL } from "./similarity";
+
+// ─── Trait Value Pools ───────────────────────────────────────────────────────
+
+const STATIC_TRAIT_POOLS: Partial<Record<GameplayTrait, readonly string[]>> = {
+  hairLength: HAIR_LENGTHS,
+  hairColor: HAIR_COLORS,
+  hairTexture: HAIR_TEXTURES,
+  facialHair: FACIAL_HAIRS,
+  glasses: GLASSES,
+  hat: HATS,
+  eyeColor: EYE_COLORS,
+  expression: EXPRESSIONS,
+  topColor: TOP_COLORS,
+};
+
+// outfitType and accessory are theme-restricted — resolved per game set, never from
+// STATIC_TRAIT_POOLS.
+export const MUTABLE_TRAITS: GameplayTrait[] = [
+  "accessory",
+  "hat",
+  "glasses",
+  "outfitType",
+  "topColor",
+];
+
+export function poolForTrait(trait: GameplayTrait, gameSet: GameSet): readonly string[] {
+  if (trait === "outfitType") return getThemeConfig(gameSet.theme).allowedOutfits;
+  if (trait === "accessory") return getThemeConfig(gameSet.theme).allowedAccessories;
+  return STATIC_TRAIT_POOLS[trait] ?? [];
+}
+
+// ─── Balance-Aware Random Draft ──────────────────────────────────────────────
+
+function countValues(chars: { attributes: CharacterAttributes }[], trait: GameplayTrait): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const c of chars) {
+    const val = c.attributes[trait] as string;
+    counts.set(val, (counts.get(val) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function pickWeightedValue(
+  trait: GameplayTrait,
+  gameSet: GameSet,
+  counts: Map<string, number>
+): string {
+  const pool = poolForTrait(trait, gameSet);
+  const underRepresented = pool.filter((v) => (counts.get(v) ?? 0) < IDEAL_TRAIT_RANGE.idealHigh);
+  const candidates = underRepresented.length > 0 ? underRepresented : pool;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+export function planNewCharacters(characters: Character[], gameSet: GameSet): CharacterDraft[] {
+  const slotsToFill = REQUIRED_DECK_SIZE - characters.length;
+  if (slotsToFill <= 0) return [];
+
+  const takenNames = new Set(characters.map((c) => c.displayName));
+  const runningCounts = new Map<GameplayTrait, Map<string, number>>();
+  for (const trait of GAMEPLAY_TRAITS) {
+    runningCounts.set(trait, countValues(characters, trait));
+  }
+
+  const drafts: CharacterDraft[] = [];
+  for (let i = 0; i < slotsToFill; i++) {
+    const displayName = pickRandomName(gameSet.theme, takenNames);
+    takenNames.add(displayName);
+
+    const attributes: Partial<CharacterAttributes> = {};
+    for (const trait of GAMEPLAY_TRAITS) {
+      const counts = runningCounts.get(trait)!;
+      const value = pickWeightedValue(trait, gameSet, counts);
+      (attributes as Record<string, string>)[trait] = value;
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+
+    drafts.push({
+      gameSetId: gameSet.id,
+      displayName,
+      referenceImageUrls: [],
+      attributes: attributes as CharacterAttributes,
+    });
+  }
+
+  return drafts;
+}
+
+// ─── Duplicate Resolution ─────────────────────────────────────────────────────
+
+type WorkingChar =
+  | { kind: "existing"; id: string; displayName: string; attributes: CharacterAttributes }
+  | { kind: "draft"; index: number; displayName: string; attributes: CharacterAttributes };
+
+function workingTag(w: WorkingChar): string {
+  return w.kind === "existing" ? `existing:${w.id}` : `draft:${w.index}`;
+}
+
+function toFakeCharacter(w: WorkingChar, gameSetId: string): Character {
+  return {
+    id: workingTag(w),
+    gameSetId,
+    displayName: w.displayName,
+    referenceImageUrls: [],
+    attributes: w.attributes,
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
+// Every candidate value for the trait, least-used-across-the-deck first (ties broken
+// randomly). Trying candidates in this order — rather than committing to a single random
+// or single least-used pick — maximizes the chance of finding a combination that's
+// actually clear of the whole deck, not just the one pair being resolved.
+function orderedByLeastUsed(
+  trait: GameplayTrait,
+  pool: readonly string[],
+  working: WorkingChar[]
+): string[] {
+  const counts = new Map<string, number>();
+  for (const w of working) {
+    const value = (w.attributes as Record<string, string>)[trait];
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled.sort((a, b) => (counts.get(a) ?? 0) - (counts.get(b) ?? 0));
+}
+
+function isClearOfWholeDeck(
+  target: WorkingChar,
+  attributes: CharacterAttributes,
+  targetIndex: number,
+  working: WorkingChar[],
+  gameSetId: string
+): boolean {
+  const candidate = toFakeCharacter({ ...target, attributes }, gameSetId);
+  for (let i = 0; i < working.length; i++) {
+    if (i === targetIndex) continue;
+    const peer = toFakeCharacter(working[i], gameSetId);
+    if (computeSimilarityScore(candidate, peer).score >= SIMILARITY_CRITICAL) return false;
+  }
+  return true;
+}
+
+function attemptResolve(
+  target: WorkingChar,
+  targetIndex: number,
+  other: WorkingChar,
+  gameSet: GameSet,
+  working: WorkingChar[]
+): { changes: CharacterEdit["changes"]; attributes: CharacterAttributes } | null {
+  const changes: CharacterEdit["changes"] = [];
+  const attributes: CharacterAttributes = { ...target.attributes };
+  const attrs = attributes as Record<string, string>;
+
+  for (const trait of MUTABLE_TRAITS) {
+    const otherValue = other.attributes[trait] as string;
+    if (attrs[trait] !== otherValue) continue; // not shared — mutating it won't reduce similarity
+
+    const pool = poolForTrait(trait, gameSet).filter((v) => v !== otherValue);
+    if (pool.length === 0) continue;
+
+    const from = attrs[trait];
+    // Try every candidate value for this trait (least-used first) before moving on to
+    // the next trait — a single random or single least-used pick can fail to clear the
+    // whole deck even though a different value for the SAME trait would have worked,
+    // especially when many characters start out identical (e.g. several added via
+    // "+ Add Character" without editing).
+    const candidates = orderedByLeastUsed(trait, pool, working);
+    let clearedByThisTrait = false;
+
+    for (const to of candidates) {
+      attrs[trait] = to;
+      // Stopping as soon as a mutation clears the ONE pair we set out to fix isn't
+      // enough — it can leave (or create) a critical collision with a THIRD character.
+      // Check clearance against the whole deck, not just `other`.
+      if (isClearOfWholeDeck(target, attributes, targetIndex, working, gameSet.id)) {
+        changes.push({ trait, from, to });
+        clearedByThisTrait = true;
+        break;
+      }
+    }
+
+    if (clearedByThisTrait) {
+      return { changes, attributes };
+    }
+
+    // No single value for this trait alone achieved clearance — apply the least-used
+    // candidate anyway and stack a mutation on the next trait too.
+    attrs[trait] = candidates[0];
+    changes.push({ trait, from, to: candidates[0] });
+  }
+
+  return isClearOfWholeDeck(target, attributes, targetIndex, working, gameSet.id)
+    ? { changes, attributes }
+    : null;
+}
+
+export function resolveDuplicates(
+  existingCharacters: Character[],
+  draftCharacters: CharacterDraft[],
+  gameSet: GameSet
+): { updatedDrafts: CharacterDraft[]; edits: CharacterEdit[]; unresolved: DeckWarning[] } {
+  const working: WorkingChar[] = [
+    ...existingCharacters.map((c): WorkingChar => ({
+      kind: "existing",
+      id: c.id,
+      displayName: c.displayName,
+      attributes: { ...c.attributes },
+    })),
+    ...draftCharacters.map((d, index): WorkingChar => ({
+      kind: "draft",
+      index,
+      displayName: d.displayName,
+      attributes: { ...d.attributes },
+    })),
+  ];
+
+  const editsByCharId = new Map<string, CharacterEdit>();
+  const unresolved: DeckWarning[] = [];
+  const skipPairKeys = new Set<string>();
+
+  // A 24-character deck has at most 24*23/2 = 276 distinct pairs. Each iteration resolves
+  // or gives up on exactly one pair, so the cap needs comfortable headroom above that
+  // maximum (plus margin for new collisions a mutation might incidentally introduce)
+  // to avoid starving out fixable pairs simply because other pairs were processed first.
+  const MAX_RESOLUTION_ITERATIONS = 500;
+
+  for (let iteration = 0; iteration < MAX_RESOLUTION_ITERATIONS; iteration++) {
+    const fakeChars = working.map((w) => toFakeCharacter(w, gameSet.id));
+    const pairs = findSimilarPairs(fakeChars, SIMILARITY_CRITICAL).filter(
+      (p) => !skipPairKeys.has(`${p.characterAId}|${p.characterBId}`)
+    );
+    if (pairs.length === 0) break;
+
+    const pair = pairs[0];
+    const pairKey = `${pair.characterAId}|${pair.characterBId}`;
+    const aIndex = working.findIndex((w) => workingTag(w) === pair.characterAId);
+    const bIndex = working.findIndex((w) => workingTag(w) === pair.characterBId);
+    const a = working[aIndex];
+    const b = working[bIndex];
+
+    const target = a.kind === "draft" ? a : b.kind === "draft" ? b : a;
+    const other = target === a ? b : a;
+    const targetIndex = target === a ? aIndex : bIndex;
+
+    const result = attemptResolve(target, targetIndex, other, gameSet, working);
+
+    if (result) {
+      working[targetIndex] = { ...target, attributes: result.attributes };
+      if (target.kind === "existing") {
+        const previous = editsByCharId.get(target.id);
+        const changes = previous ? [...previous.changes, ...result.changes] : result.changes;
+        editsByCharId.set(target.id, {
+          characterId: target.id,
+          displayName: target.displayName,
+          changes,
+        });
+      }
+    } else {
+      unresolved.push({
+        severity: "critical",
+        message: `"${a.displayName}" and "${b.displayName}" are ${pair.similarityScore}% similar and could not be resolved without changing hair, eyes, expression, or facial hair.`,
+        affectedCharacterIds: [
+          a.kind === "existing" ? a.id : `new:${a.index}`,
+          b.kind === "existing" ? b.id : `new:${b.index}`,
+        ],
+      });
+      skipPairKeys.add(pairKey);
+    }
+  }
+
+  // Final sweep: report any critical pair still remaining (e.g. the iteration cap was
+  // reached before every pair was processed) that we haven't already reported.
+  const finalFakeChars = working.map((w) => toFakeCharacter(w, gameSet.id));
+  const finalPairs = findSimilarPairs(finalFakeChars, SIMILARITY_CRITICAL);
+  for (const pair of finalPairs) {
+    const pairKey = `${pair.characterAId}|${pair.characterBId}`;
+    if (skipPairKeys.has(pairKey)) continue;
+    skipPairKeys.add(pairKey);
+    const aIndex = working.findIndex((w) => workingTag(w) === pair.characterAId);
+    const bIndex = working.findIndex((w) => workingTag(w) === pair.characterBId);
+    const a = working[aIndex];
+    const b = working[bIndex];
+    unresolved.push({
+      severity: "critical",
+      message: `"${a.displayName}" and "${b.displayName}" are ${pair.similarityScore}% similar and could not be resolved within the iteration budget.`,
+      affectedCharacterIds: [
+        a.kind === "existing" ? a.id : `new:${a.index}`,
+        b.kind === "existing" ? b.id : `new:${b.index}`,
+      ],
+    });
+  }
+
+  const updatedDrafts = draftCharacters.map((d, index) => {
+    const w = working.find(
+      (w): w is Extract<WorkingChar, { kind: "draft" }> => w.kind === "draft" && w.index === index
+    )!;
+    return { ...d, attributes: w.attributes };
+  });
+
+  return { updatedDrafts, edits: Array.from(editsByCharId.values()), unresolved };
+}
+
+// ─── Combined Planner ─────────────────────────────────────────────────────────
+
+export function planMakePlayable(characters: Character[], gameSet: GameSet): MakePlayablePlan {
+  const drafts = planNewCharacters(characters, gameSet);
+  const { updatedDrafts, edits, unresolved } = resolveDuplicates(characters, drafts, gameSet);
+
+  const editsByCharId = new Map(edits.map((e) => [e.characterId, e]));
+  const projectedExisting: Character[] = characters.map((c) => {
+    const edit = editsByCharId.get(c.id);
+    if (!edit) return c;
+    const attributes: CharacterAttributes = { ...c.attributes };
+    const attrs = attributes as Record<string, string>;
+    for (const change of edit.changes) attrs[change.trait] = change.to;
+    return { ...c, attributes };
+  });
+
+  const projectedDrafts: Character[] = updatedDrafts.map((d, i) => ({
+    id: `new-${i}`,
+    gameSetId: d.gameSetId,
+    displayName: d.displayName,
+    referenceImageUrls: d.referenceImageUrls,
+    attributes: d.attributes,
+    createdAt: "",
+    updatedAt: "",
+  }));
+
+  const report = evaluateDeck([...projectedExisting, ...projectedDrafts]);
+
+  return {
+    newCharacters: updatedDrafts,
+    edits,
+    unresolved,
+    willBePlayable: report.isPlayable,
+  };
+}

@@ -14,12 +14,14 @@ import {
 } from "@/lib/supabase/db";
 import { evaluateDeck } from "@/lib/game-engine/balance";
 import { generateCharacterPrompt } from "@/lib/game-engine/prompts";
-import type { GameSet, Character, CharacterAttributes, ImageStyle, Person } from "@/types/game";
+import type { GameSet, Character, CharacterAttributes, ImageStyle, Person, MakePlayablePlan } from "@/types/game";
 import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import CharacterCard from "@/components/game-sets/CharacterCard";
 import CharacterEditor from "@/components/game-sets/CharacterEditor";
 import BalanceScoreBadge from "@/components/game-sets/BalanceScoreBadge";
 import PeoplePanel from "@/components/people/PeoplePanel";
+import MakePlayableModal from "@/components/game-sets/MakePlayableModal";
+import { planMakePlayable } from "@/lib/game-engine/randomize";
 
 const ALL_IMAGE_STYLES = Object.keys(IMAGE_STYLE_CONFIGS) as ImageStyle[];
 
@@ -46,6 +48,9 @@ export default function GameSetEditorPage({
   const [generateAllProgress, setGenerateAllProgress] = useState<GenerateAllProgress | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
+  const [makePlayablePlan, setMakePlayablePlan] = useState<MakePlayablePlan | null>(null);
+  const [isApplyingPlan, setIsApplyingPlan] = useState(false);
+  const [makePlayableError, setMakePlayableError] = useState<string | null>(null);
 
   async function load() {
     const [set, chars, ppl] = await Promise.all([
@@ -185,9 +190,8 @@ export default function GameSetEditorPage({
 
   async function handleGenerateAll() {
     if (!gameSet) return;
-    const eligible = characters.filter((c) => c.referenceImageUrls.length > 0);
-    if (eligible.length === 0) return;
-    await runGenerationLoop(eligible);
+    if (characters.length === 0) return;
+    await runGenerationLoop(characters);
   }
 
   async function handleRetryFailed() {
@@ -225,11 +229,75 @@ export default function GameSetEditorPage({
     );
   }
 
+  function handleOpenMakePlayable() {
+    if (!gameSet) return;
+    setMakePlayableError(null);
+    setMakePlayablePlan(planMakePlayable(characters, gameSet));
+  }
+
+  function handleCancelMakePlayable() {
+    setMakePlayablePlan(null);
+    setMakePlayableError(null);
+  }
+
+  async function handleConfirmMakePlayable() {
+    if (!makePlayablePlan || !gameSet) return;
+    setIsApplyingPlan(true);
+    setMakePlayableError(null);
+
+    const created: Character[] = [];
+    try {
+      for (const draft of makePlayablePlan.newCharacters) {
+        const char = await createCharacter({
+          gameSetId: id,
+          displayName: draft.displayName,
+          attributes: draft.attributes,
+        });
+        created.push(char);
+      }
+
+      const updatedExisting = characters.map((c) => {
+        const edit = makePlayablePlan.edits.find((e) => e.characterId === c.id);
+        if (!edit) return c;
+        const attrs = { ...c.attributes };
+        for (const change of edit.changes) attrs[change.trait] = change.to as never;
+        return { ...c, attributes: attrs };
+      });
+
+      for (const edit of makePlayablePlan.edits) {
+        const merged = updatedExisting.find((c) => c.id === edit.characterId)!;
+        await updateCharacter(edit.characterId, { attributes: merged.attributes });
+      }
+
+      const allCharacters = [...updatedExisting, ...created];
+      setCharacters(allCharacters);
+
+      await runGenerationLoop(created);
+
+      runBalance(allCharacters);
+      await saveBalanceReport(id, evaluateDeck(allCharacters));
+      setMakePlayablePlan(null);
+    } catch (err: unknown) {
+      // Reconciles newly-created characters only; if an edit to an existing character
+      // succeeded before a later failure, that edit is persisted in the DB but won't be
+      // reflected in local state until the next full reload. Acceptable known gap.
+      setCharacters((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const newlyCreated = created.filter((c) => !existingIds.has(c.id));
+        return newlyCreated.length > 0 ? [...prev, ...newlyCreated] : prev;
+      });
+      setMakePlayableError(
+        err instanceof Error ? err.message : "Failed to make the deck playable"
+      );
+    } finally {
+      setIsApplyingPlan(false);
+    }
+  }
+
   if (loading) return <p className="text-gray-500">Loading…</p>;
   if (!gameSet) return <p className="text-red-400">Game set not found.</p>;
 
   const selectedChar = characters.find((c) => c.id === selectedId) ?? null;
-  const eligibleCount = characters.filter((c) => c.referenceImageUrls.length > 0).length;
 
   return (
     <div className="flex gap-6">
@@ -266,12 +334,20 @@ export default function GameSetEditorPage({
                 Print View
               </Link>
             )}
-            {eligibleCount > 0 && !isGeneratingAll && (
+            {characters.length > 0 && !isGeneratingAll && (
               <button
                 onClick={handleGenerateAll}
                 className="text-sm bg-violet-700 hover:bg-violet-600 text-white px-3 py-1.5 rounded transition-colors"
               >
                 Generate All
+              </button>
+            )}
+            {isPlayable === false && !isApplyingPlan && (
+              <button
+                onClick={handleOpenMakePlayable}
+                className="text-sm bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded transition-colors"
+              >
+                Make Playable
               </button>
             )}
             {characters.length < 24 && (
@@ -372,6 +448,16 @@ export default function GameSetEditorPage({
           />
         )}
       </div>
+
+      {makePlayablePlan && (
+        <MakePlayableModal
+          plan={makePlayablePlan}
+          onConfirm={handleConfirmMakePlayable}
+          onCancel={handleCancelMakePlayable}
+          isApplying={isApplyingPlan}
+          error={makePlayableError}
+        />
+      )}
     </div>
   );
 }

@@ -12,11 +12,8 @@ export class GeminiImageProvider implements ImageGenerationProvider {
     prompt: string,
     referenceImageUrls: string[]
   ): Promise<GeneratedImageResult> {
-    if (referenceImageUrls.length === 0) {
-      throw new Error("At least one reference image URL is required");
-    }
-
-    // Fetch each reference image and convert to base64 inline data
+    // Fetch each reference image and convert to base64 inline data.
+    // An empty array is valid — Gemini generates from the text prompt alone.
     const imageParts = await Promise.all(
       referenceImageUrls.map(async (url) => {
         const res = await fetch(url);

@@ -191,8 +191,6 @@ export default function CharacterEditor({
   const styleModifier = IMAGE_STYLE_CONFIGS[gameSet.imageStyle]?.promptModifier ?? "";
   const previewPrompt = `${basePreviewPrompt}\n\nARTISTIC STYLE: ${styleModifier}`;
 
-  const canGenerate = referenceImageUrls.length > 0;
-
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4 sticky top-8">
       <div className="flex items-center justify-between">
@@ -395,8 +393,12 @@ export default function CharacterEditor({
         </button>
         <button
           onClick={handleGenerate}
-          disabled={!canGenerate || generating}
-          title={!canGenerate ? "Upload at least one photo first" : "Generate portrait"}
+          disabled={generating}
+          title={
+            referenceImageUrls.length > 0
+              ? "Generate portrait"
+              : "Generate portrait (no reference photo — appearance is invented from the attributes below)"
+          }
           className="flex items-center gap-2 bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           {generating && (
