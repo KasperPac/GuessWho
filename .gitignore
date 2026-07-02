@@ -18,3 +18,9 @@ out/
 npm-debug.log*
 .DS_Store
 *.pem
+
+# brainstorming sessions
+.superpowers/
+
+# git worktrees
+.worktrees/
