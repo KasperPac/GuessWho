@@ -34,11 +34,13 @@ export default function MakePlayableModal({
   onConfirm,
   onCancel,
   isApplying,
+  error,
 }: {
   plan: MakePlayablePlan;
   onConfirm: () => void;
   onCancel: () => void;
   isApplying: boolean;
+  error?: string | null;
 }) {
   const remaining = plan.unresolved.length;
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
@@ -121,6 +123,12 @@ export default function MakePlayableModal({
               ))}
             </ul>
           </div>
+        )}
+
+        {error && (
+          <p className="text-sm text-red-400 bg-red-950/40 rounded px-2.5 py-1.5 mb-4">
+            {error}
+          </p>
         )}
 
         <div className="flex justify-end gap-2 mt-4">

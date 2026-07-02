@@ -50,6 +50,7 @@ export default function GameSetEditorPage({
   const [people, setPeople] = useState<Person[]>([]);
   const [makePlayablePlan, setMakePlayablePlan] = useState<MakePlayablePlan | null>(null);
   const [isApplyingPlan, setIsApplyingPlan] = useState(false);
+  const [makePlayableError, setMakePlayableError] = useState<string | null>(null);
 
   async function load() {
     const [set, chars, ppl] = await Promise.all([
@@ -231,49 +232,64 @@ export default function GameSetEditorPage({
 
   function handleOpenMakePlayable() {
     if (!gameSet) return;
+    setMakePlayableError(null);
     setMakePlayablePlan(planMakePlayable(characters, gameSet));
   }
 
   function handleCancelMakePlayable() {
     setMakePlayablePlan(null);
+    setMakePlayableError(null);
   }
 
   async function handleConfirmMakePlayable() {
     if (!makePlayablePlan || !gameSet) return;
     setIsApplyingPlan(true);
+    setMakePlayableError(null);
 
     const created: Character[] = [];
-    for (const draft of makePlayablePlan.newCharacters) {
-      const char = await createCharacter({
-        gameSetId: id,
-        displayName: draft.displayName,
-        attributes: draft.attributes,
+    try {
+      for (const draft of makePlayablePlan.newCharacters) {
+        const char = await createCharacter({
+          gameSetId: id,
+          displayName: draft.displayName,
+          attributes: draft.attributes,
+        });
+        created.push(char);
+      }
+
+      const updatedExisting = characters.map((c) => {
+        const edit = makePlayablePlan.edits.find((e) => e.characterId === c.id);
+        if (!edit) return c;
+        const attrs = { ...c.attributes };
+        for (const change of edit.changes) attrs[change.trait] = change.to as never;
+        return { ...c, attributes: attrs };
       });
-      created.push(char);
+
+      for (const edit of makePlayablePlan.edits) {
+        const merged = updatedExisting.find((c) => c.id === edit.characterId)!;
+        await updateCharacter(edit.characterId, { attributes: merged.attributes });
+      }
+
+      const allCharacters = [...updatedExisting, ...created];
+      setCharacters(allCharacters);
+
+      await runGenerationLoop(created);
+
+      runBalance(allCharacters);
+      await saveBalanceReport(id, evaluateDeck(allCharacters));
+      setMakePlayablePlan(null);
+    } catch (err: unknown) {
+      setCharacters((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const newlyCreated = created.filter((c) => !existingIds.has(c.id));
+        return newlyCreated.length > 0 ? [...prev, ...newlyCreated] : prev;
+      });
+      setMakePlayableError(
+        err instanceof Error ? err.message : "Failed to make the deck playable"
+      );
+    } finally {
+      setIsApplyingPlan(false);
     }
-
-    const updatedExisting = characters.map((c) => {
-      const edit = makePlayablePlan.edits.find((e) => e.characterId === c.id);
-      if (!edit) return c;
-      const attrs = { ...c.attributes };
-      for (const change of edit.changes) attrs[change.trait] = change.to as never;
-      return { ...c, attributes: attrs };
-    });
-
-    for (const edit of makePlayablePlan.edits) {
-      const merged = updatedExisting.find((c) => c.id === edit.characterId)!;
-      await updateCharacter(edit.characterId, { attributes: merged.attributes });
-    }
-
-    const allCharacters = [...updatedExisting, ...created];
-    setCharacters(allCharacters);
-    setMakePlayablePlan(null);
-
-    await runGenerationLoop(created);
-
-    runBalance(allCharacters);
-    await saveBalanceReport(id, evaluateDeck(allCharacters));
-    setIsApplyingPlan(false);
   }
 
   if (loading) return <p className="text-gray-500">Loading…</p>;
@@ -325,7 +341,7 @@ export default function GameSetEditorPage({
                 Generate All
               </button>
             )}
-            {isPlayable === false && (
+            {isPlayable === false && !isApplyingPlan && (
               <button
                 onClick={handleOpenMakePlayable}
                 className="text-sm bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded transition-colors"
@@ -438,6 +454,7 @@ export default function GameSetEditorPage({
           onConfirm={handleConfirmMakePlayable}
           onCancel={handleCancelMakePlayable}
           isApplying={isApplyingPlan}
+          error={makePlayableError}
         />
       )}
     </div>
