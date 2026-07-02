@@ -41,7 +41,7 @@ export default function MakePlayableModal({
   isApplying: boolean;
 }) {
   const remaining = plan.unresolved.length;
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -54,7 +54,7 @@ export default function MakePlayableModal({
   }, [isApplying, onCancel]);
 
   useEffect(() => {
-    confirmButtonRef.current?.focus();
+    cancelButtonRef.current?.focus();
   }, []);
 
   return (
@@ -125,6 +125,7 @@ export default function MakePlayableModal({
 
         <div className="flex justify-end gap-2 mt-4">
           <button
+            ref={cancelButtonRef}
             onClick={onCancel}
             disabled={isApplying}
             className="text-sm border border-gray-700 hover:border-gray-500 text-gray-300 px-3 py-1.5 rounded transition-colors disabled:opacity-50"
@@ -132,7 +133,6 @@ export default function MakePlayableModal({
             Cancel
           </button>
           <button
-            ref={confirmButtonRef}
             onClick={onConfirm}
             disabled={isApplying}
             className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded transition-colors disabled:opacity-50"
