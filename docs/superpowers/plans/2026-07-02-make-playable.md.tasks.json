@@ -4,7 +4,7 @@
     {
       "id": 1,
       "subject": "Task 1: Theme-based random name pools",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** A pure module that hands out a random, theme-appropriate, not-already-used character name.\n\n**Files:**\n- Create: `src/lib/game-engine/names.ts`\n- Test: `src/__tests__/names.test.ts`\n\n**Acceptance Criteria:**\n- Every GameTheme has a non-empty, duplicate-free name pool.\n- pickRandomName never returns a name already in the taken set.\n- pickRandomName falls back to \"Character N\" once a theme's pool is exhausted.\n\n**Verify:** `node node_modules/jest/bin/jest.js src/__tests__/names.test.ts`\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 1.\n\n```json:metadata\n{\"files\": [\"src/lib/game-engine/names.ts\", \"src/__tests__/names.test.ts\"], \"verifyCommand\": \"node node_modules/jest/bin/jest.js src/__tests__/names.test.ts\", \"acceptanceCriteria\": [\"Every GameTheme has a non-empty, duplicate-free name pool\", \"pickRandomName never returns a name already in the taken set\", \"pickRandomName falls back to Character N once a theme's pool is exhausted\"]}\n```"
     },
     {
@@ -49,5 +49,5 @@
       "description": "**Goal:** Add the \"Make Playable\" button, plan state, and confirm handler to src/app/game-sets/[id]/page.tsx, persisting the plan and generating images for new characters.\n\n**Files:**\n- Modify: `src/app/game-sets/[id]/page.tsx`\n\n**Acceptance Criteria:**\n- Button appears in header row only when isPlayable === false.\n- Clicking computes and shows MakePlayableModal with current plan.\n- Cancel closes modal with no side effects.\n- Confirm creates new characters, applies edits, runs generation loop for new characters, re-evaluates and saves balance report, closes modal.\n\n**Verify:** Manual — `npm run dev`, open a game set with <24 characters, click Make Playable, verify preview, confirm, verify grid reaches 24 and balance badge updates. Then full test suite `node node_modules/jest/bin/jest.js`.\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 7.\n\n```json:metadata\n{\"files\": [\"src/app/game-sets/[id]/page.tsx\"], \"verifyCommand\": \"node node_modules/jest/bin/jest.js\", \"acceptanceCriteria\": [\"Button shown only when not playable\", \"Modal opens with correct plan\", \"Cancel is a no-op\", \"Confirm persists new chars + edits + runs generation + updates balance\"]}\n```"
     }
   ],
-  "lastUpdated": "2026-07-02T00:00:00Z"
+  "lastUpdated": "2026-07-02T01:00:00Z"
 }
