@@ -126,30 +126,28 @@ function toFakeCharacter(w: WorkingChar, gameSetId: string): Character {
   };
 }
 
-function pickLeastUsedValue(
+// Every candidate value for the trait, least-used-across-the-deck first (ties broken
+// randomly). Trying candidates in this order — rather than committing to a single random
+// or single least-used pick — maximizes the chance of finding a combination that's
+// actually clear of the whole deck, not just the one pair being resolved.
+function orderedByLeastUsed(
   trait: GameplayTrait,
   pool: readonly string[],
   working: WorkingChar[]
-): string {
+): string[] {
   const counts = new Map<string, number>();
   for (const w of working) {
     const value = (w.attributes as Record<string, string>)[trait];
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
 
-  let minCount = Infinity;
-  let candidates: string[] = [];
-  for (const value of pool) {
-    const count = counts.get(value) ?? 0;
-    if (count < minCount) {
-      minCount = count;
-      candidates = [value];
-    } else if (count === minCount) {
-      candidates.push(value);
-    }
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
 
-  return candidates[Math.floor(Math.random() * candidates.length)];
+  return shuffled.sort((a, b) => (counts.get(a) ?? 0) - (counts.get(b) ?? 0));
 }
 
 function isClearOfWholeDeck(
@@ -187,24 +185,39 @@ function attemptResolve(
     if (pool.length === 0) continue;
 
     const from = attrs[trait];
-    // Prefer the value currently least represented across the whole deck, rather than a
-    // flat random pick — otherwise two independently-mutated characters can land on the
-    // same new combination and collide with each other, especially when many characters
-    // start out identical (e.g. several added via "+ Add Character" without editing).
-    const to = pickLeastUsedValue(trait, pool, working);
-    attrs[trait] = to;
-    changes.push({ trait, from, to });
+    // Try every candidate value for this trait (least-used first) before moving on to
+    // the next trait — a single random or single least-used pick can fail to clear the
+    // whole deck even though a different value for the SAME trait would have worked,
+    // especially when many characters start out identical (e.g. several added via
+    // "+ Add Character" without editing).
+    const candidates = orderedByLeastUsed(trait, pool, working);
+    let clearedByThisTrait = false;
 
-    // Stopping as soon as this mutation clears the ONE pair we set out to fix isn't
-    // enough — it can leave (or create) a critical collision with a THIRD character.
-    // Keep mutating additional mutable traits until the candidate is clear of every
-    // other character in the deck, not just `other`.
-    if (isClearOfWholeDeck(target, attributes, targetIndex, working, gameSet.id)) {
+    for (const to of candidates) {
+      attrs[trait] = to;
+      // Stopping as soon as a mutation clears the ONE pair we set out to fix isn't
+      // enough — it can leave (or create) a critical collision with a THIRD character.
+      // Check clearance against the whole deck, not just `other`.
+      if (isClearOfWholeDeck(target, attributes, targetIndex, working, gameSet.id)) {
+        changes.push({ trait, from, to });
+        clearedByThisTrait = true;
+        break;
+      }
+    }
+
+    if (clearedByThisTrait) {
       return { changes, attributes };
     }
+
+    // No single value for this trait alone achieved clearance — apply the least-used
+    // candidate anyway and stack a mutation on the next trait too.
+    attrs[trait] = candidates[0];
+    changes.push({ trait, from, to: candidates[0] });
   }
 
-  return null;
+  return isClearOfWholeDeck(target, attributes, targetIndex, working, gameSet.id)
+    ? { changes, attributes }
+    : null;
 }
 
 export function resolveDuplicates(

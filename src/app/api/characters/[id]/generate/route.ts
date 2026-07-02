@@ -117,7 +117,11 @@ export async function POST(
     .from("character-images")
     .getPublicUrl(storagePath);
 
-  const generatedImageUrl = urlData.publicUrl;
+  // The storage path is fixed per character (upsert overwrites the same file on every
+  // regeneration), so the public URL string never changes on its own. Append a
+  // cache-busting query param so the browser (and any CDN in front of storage) actually
+  // fetches the new image instead of serving a stale cached copy at the same URL.
+  const generatedImageUrl = `${urlData.publicUrl}?v=${Date.now()}`;
 
   // 8. Update character in DB
   try {
