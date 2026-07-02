@@ -279,6 +279,9 @@ export default function GameSetEditorPage({
       await saveBalanceReport(id, evaluateDeck(allCharacters));
       setMakePlayablePlan(null);
     } catch (err: unknown) {
+      // Reconciles newly-created characters only; if an edit to an existing character
+      // succeeded before a later failure, that edit is persisted in the DB but won't be
+      // reflected in local state until the next full reload. Acceptable known gap.
       setCharacters((prev) => {
         const existingIds = new Set(prev.map((c) => c.id));
         const newlyCreated = created.filter((c) => !existingIds.has(c.id));

@@ -126,7 +126,7 @@ export default function MakePlayableModal({
         )}
 
         {error && (
-          <p className="text-sm text-red-400 bg-red-950/40 rounded px-2.5 py-1.5 mb-4">
+          <p role="alert" className="text-sm text-red-400 bg-red-950/40 rounded px-2.5 py-1.5 mb-4">
             {error}
           </p>
         )}
@@ -142,7 +142,7 @@ export default function MakePlayableModal({
           </button>
           <button
             onClick={onConfirm}
-            disabled={isApplying}
+            disabled={isApplying || !!error}
             className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded transition-colors disabled:opacity-50"
           >
             {isApplying ? "Applying…" : "Confirm"}
