@@ -201,7 +201,6 @@ export function resolveDuplicates(
     const target = a.kind === "draft" ? a : b.kind === "draft" ? b : a;
     const other = target === a ? b : a;
     const targetIndex = target === a ? aIndex : bIndex;
-    const otherIndex = target === a ? bIndex : aIndex;
 
     const result = attemptResolve(target, other, gameSet);
 

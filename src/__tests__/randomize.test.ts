@@ -99,4 +99,18 @@ describe("resolveDuplicates", () => {
     expect(edits.length).toBe(0);
     expect(unresolved.length).toBe(0);
   });
+
+  it("reports unresolved critical pairs left over when the iteration cap is hit", () => {
+    const clones = Array.from({ length: 24 }, (_, i) =>
+      cloneChar(MOCK_CHARACTERS[0], `clone-${i}`)
+    );
+    const { edits, unresolved } = resolveDuplicates(clones, [], MOCK_GAME_SET);
+
+    expect(edits.length).toBeGreaterThan(0);
+    expect(unresolved.length).toBeGreaterThan(0);
+    for (const warning of unresolved) {
+      expect(warning.severity).toBe("critical");
+      expect(warning.affectedCharacterIds?.length).toBe(2);
+    }
+  });
 });
