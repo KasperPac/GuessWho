@@ -190,9 +190,8 @@ export default function GameSetEditorPage({
 
   async function handleGenerateAll() {
     if (!gameSet) return;
-    const eligible = characters.filter((c) => c.referenceImageUrls.length > 0);
-    if (eligible.length === 0) return;
-    await runGenerationLoop(eligible);
+    if (characters.length === 0) return;
+    await runGenerationLoop(characters);
   }
 
   async function handleRetryFailed() {
@@ -299,7 +298,6 @@ export default function GameSetEditorPage({
   if (!gameSet) return <p className="text-red-400">Game set not found.</p>;
 
   const selectedChar = characters.find((c) => c.id === selectedId) ?? null;
-  const eligibleCount = characters.filter((c) => c.referenceImageUrls.length > 0).length;
 
   return (
     <div className="flex gap-6">
@@ -336,7 +334,7 @@ export default function GameSetEditorPage({
                 Print View
               </Link>
             )}
-            {eligibleCount > 0 && !isGeneratingAll && (
+            {characters.length > 0 && !isGeneratingAll && (
               <button
                 onClick={handleGenerateAll}
                 className="text-sm bg-violet-700 hover:bg-violet-600 text-white px-3 py-1.5 rounded transition-colors"
