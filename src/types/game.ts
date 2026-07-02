@@ -137,6 +137,12 @@ export type CharacterDraft = Pick<
   "gameSetId" | "displayName" | "referenceImageUrls" | "attributes"
 >;
 
+export type CharacterEdit = {
+  characterId: string;
+  displayName: string;
+  changes: { trait: keyof CharacterAttributes; from: string; to: string }[];
+};
+
 // ─── Balance ───────────────────────────────────────────────────────────────
 
 export type WarningSeverity = "info" | "warning" | "critical";

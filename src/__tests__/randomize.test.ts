@@ -1,8 +1,8 @@
-import { planNewCharacters } from "@/lib/game-engine/randomize";
+import { planNewCharacters, resolveDuplicates } from "@/lib/game-engine/randomize";
 import { MOCK_CHARACTERS, MOCK_GAME_SET } from "@/lib/game-engine/mockDeck";
 import { GAMEPLAY_TRAITS } from "@/lib/game-engine/attributes";
 import { getThemeConfig } from "@/lib/game-engine/themes";
-import type { GameSet } from "@/types/game";
+import type { Character, CharacterDraft, GameSet } from "@/types/game";
 
 describe("planNewCharacters", () => {
   it("returns an empty array when the deck already has 24 characters", () => {
@@ -49,5 +49,54 @@ describe("planNewCharacters", () => {
     for (const draft of drafts) {
       expect(draft.referenceImageUrls).toEqual([]);
     }
+  });
+});
+
+function cloneChar(char: Character, id: string, overrides: Partial<Character["attributes"]> = {}): Character {
+  return { ...char, id, attributes: { ...char.attributes, ...overrides } };
+}
+
+describe("resolveDuplicates", () => {
+  it("resolves two identical existing characters by editing only mutable traits", () => {
+    const a = MOCK_CHARACTERS[0];
+    const b = cloneChar(a, "twin-b");
+    const { edits, unresolved } = resolveDuplicates([a, b], [], MOCK_GAME_SET);
+
+    expect(unresolved.length).toBe(0);
+    expect(edits.length).toBe(1);
+    const changedTraits = edits[0].changes.map((c) => c.trait);
+    for (const trait of changedTraits) {
+      expect(["accessory", "hat", "glasses", "outfitType", "topColor"]).toContain(trait);
+    }
+  });
+
+  it("never changes facialHair, hair, eyeColor, or expression", () => {
+    const a = MOCK_CHARACTERS[0];
+    const b = cloneChar(a, "twin-b");
+    const { edits } = resolveDuplicates([a, b], [], MOCK_GAME_SET);
+    const changedTraits = edits.flatMap((e) => e.changes.map((c) => c.trait));
+    for (const forbidden of ["facialHair", "hairLength", "hairColor", "hairTexture", "eyeColor", "expression"]) {
+      expect(changedTraits).not.toContain(forbidden);
+    }
+  });
+
+  it("prefers mutating a draft over an existing character when a pair includes both", () => {
+    const existing = MOCK_CHARACTERS[0];
+    const draft: CharacterDraft = {
+      gameSetId: MOCK_GAME_SET.id,
+      displayName: "New Twin",
+      referenceImageUrls: [],
+      attributes: { ...existing.attributes },
+    };
+    const { edits, updatedDrafts } = resolveDuplicates([existing], [draft], MOCK_GAME_SET);
+
+    expect(edits.length).toBe(0);
+    expect(updatedDrafts[0].attributes).not.toEqual(existing.attributes);
+  });
+
+  it("leaves characters untouched when there are no critical collisions", () => {
+    const { edits, unresolved } = resolveDuplicates(MOCK_CHARACTERS, [], MOCK_GAME_SET);
+    expect(edits.length).toBe(0);
+    expect(unresolved.length).toBe(0);
   });
 });

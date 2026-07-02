@@ -1,4 +1,4 @@
-import type { Character, CharacterAttributes, CharacterDraft, GameSet } from "@/types/game";
+import type { Character, CharacterAttributes, CharacterDraft, CharacterEdit, DeckWarning, GameSet } from "@/types/game";
 import {
   GAMEPLAY_TRAITS,
   GameplayTrait,
@@ -16,6 +16,7 @@ import {
 import { getThemeConfig } from "./themes";
 import { REQUIRED_DECK_SIZE } from "./balance";
 import { pickRandomName } from "./names";
+import { findSimilarPairs, computeSimilarityScore, SIMILARITY_CRITICAL } from "./similarity";
 
 // ─── Trait Value Pools ───────────────────────────────────────────────────────
 
@@ -101,4 +102,138 @@ export function planNewCharacters(characters: Character[], gameSet: GameSet): Ch
   }
 
   return drafts;
+}
+
+// ─── Duplicate Resolution ─────────────────────────────────────────────────────
+
+type WorkingChar =
+  | { kind: "existing"; id: string; displayName: string; attributes: CharacterAttributes }
+  | { kind: "draft"; index: number; displayName: string; attributes: CharacterAttributes };
+
+function workingTag(w: WorkingChar): string {
+  return w.kind === "existing" ? `existing:${w.id}` : `draft:${w.index}`;
+}
+
+function toFakeCharacter(w: WorkingChar, gameSetId: string): Character {
+  return {
+    id: workingTag(w),
+    gameSetId,
+    displayName: w.displayName,
+    referenceImageUrls: [],
+    attributes: w.attributes,
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
+function attemptResolve(
+  target: WorkingChar,
+  other: WorkingChar,
+  gameSet: GameSet
+): { changes: CharacterEdit["changes"]; attributes: CharacterAttributes } | null {
+  const changes: CharacterEdit["changes"] = [];
+  const attributes: CharacterAttributes = { ...target.attributes };
+
+  for (const trait of MUTABLE_TRAITS) {
+    const otherValue = other.attributes[trait] as string;
+    if ((attributes as Record<string, string>)[trait] !== otherValue) continue; // not shared — mutating it won't reduce similarity
+
+    const pool = poolForTrait(trait, gameSet).filter((v) => v !== otherValue);
+    if (pool.length === 0) continue;
+
+    const from = (attributes as Record<string, string>)[trait];
+    const to = pool[Math.floor(Math.random() * pool.length)];
+    (attributes as Record<string, string>)[trait] = to;
+    changes.push({ trait, from, to });
+
+    const score = computeSimilarityScore(
+      toFakeCharacter({ ...target, attributes }, gameSet.id),
+      toFakeCharacter(other, gameSet.id)
+    ).score;
+
+    if (score < SIMILARITY_CRITICAL) {
+      return { changes, attributes };
+    }
+  }
+
+  return null;
+}
+
+export function resolveDuplicates(
+  existingCharacters: Character[],
+  draftCharacters: CharacterDraft[],
+  gameSet: GameSet
+): { updatedDrafts: CharacterDraft[]; edits: CharacterEdit[]; unresolved: DeckWarning[] } {
+  const working: WorkingChar[] = [
+    ...existingCharacters.map((c): WorkingChar => ({
+      kind: "existing",
+      id: c.id,
+      displayName: c.displayName,
+      attributes: { ...c.attributes },
+    })),
+    ...draftCharacters.map((d, index): WorkingChar => ({
+      kind: "draft",
+      index,
+      displayName: d.displayName,
+      attributes: { ...d.attributes },
+    })),
+  ];
+
+  const editsByCharId = new Map<string, CharacterEdit>();
+  const unresolved: DeckWarning[] = [];
+  const skipPairKeys = new Set<string>();
+
+  for (let iteration = 0; iteration < 50; iteration++) {
+    const fakeChars = working.map((w) => toFakeCharacter(w, gameSet.id));
+    const pairs = findSimilarPairs(fakeChars, SIMILARITY_CRITICAL).filter(
+      (p) => !skipPairKeys.has(`${p.characterAId}|${p.characterBId}`)
+    );
+    if (pairs.length === 0) break;
+
+    const pair = pairs[0];
+    const pairKey = `${pair.characterAId}|${pair.characterBId}`;
+    const aIndex = working.findIndex((w) => workingTag(w) === pair.characterAId);
+    const bIndex = working.findIndex((w) => workingTag(w) === pair.characterBId);
+    const a = working[aIndex];
+    const b = working[bIndex];
+
+    const targetIndex = b.kind === "draft" ? bIndex : aIndex;
+    const otherIndex = targetIndex === aIndex ? bIndex : aIndex;
+    const target = working[targetIndex];
+    const other = working[otherIndex];
+
+    const result = attemptResolve(target, other, gameSet);
+
+    if (result) {
+      working[targetIndex] = { ...target, attributes: result.attributes };
+      if (target.kind === "existing") {
+        const previous = editsByCharId.get(target.id);
+        const changes = previous ? [...previous.changes, ...result.changes] : result.changes;
+        editsByCharId.set(target.id, {
+          characterId: target.id,
+          displayName: target.displayName,
+          changes,
+        });
+      }
+    } else {
+      unresolved.push({
+        severity: "critical",
+        message: `"${a.displayName}" and "${b.displayName}" are ${pair.similarityScore}% similar and could not be resolved without changing hair or facial features.`,
+        affectedCharacterIds: [
+          a.kind === "existing" ? a.id : `new:${a.index}`,
+          b.kind === "existing" ? b.id : `new:${b.index}`,
+        ],
+      });
+      skipPairKeys.add(pairKey);
+    }
+  }
+
+  const updatedDrafts = draftCharacters.map((d, index) => {
+    const w = working.find(
+      (w): w is Extract<WorkingChar, { kind: "draft" }> => w.kind === "draft" && w.index === index
+    )!;
+    return { ...d, attributes: w.attributes };
+  });
+
+  return { updatedDrafts, edits: Array.from(editsByCharId.values()), unresolved };
 }
