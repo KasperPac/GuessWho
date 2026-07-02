@@ -184,7 +184,13 @@ export function resolveDuplicates(
   const unresolved: DeckWarning[] = [];
   const skipPairKeys = new Set<string>();
 
-  for (let iteration = 0; iteration < 50; iteration++) {
+  // A 24-character deck has at most 24*23/2 = 276 distinct pairs. Each iteration resolves
+  // or gives up on exactly one pair, so the cap needs comfortable headroom above that
+  // maximum (plus margin for new collisions a mutation might incidentally introduce)
+  // to avoid starving out fixable pairs simply because other pairs were processed first.
+  const MAX_RESOLUTION_ITERATIONS = 500;
+
+  for (let iteration = 0; iteration < MAX_RESOLUTION_ITERATIONS; iteration++) {
     const fakeChars = working.map((w) => toFakeCharacter(w, gameSet.id));
     const pairs = findSimilarPairs(fakeChars, SIMILARITY_CRITICAL).filter(
       (p) => !skipPairKeys.has(`${p.characterAId}|${p.characterBId}`)
