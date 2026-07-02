@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { CharacterAttributes, MakePlayablePlan } from "@/types/game";
 
 const TRAIT_LABELS: Record<string, string> = {
@@ -40,11 +41,31 @@ export default function MakePlayableModal({
   isApplying: boolean;
 }) {
   const remaining = plan.unresolved.length;
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !isApplying) {
+        onCancel();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isApplying, onCancel]);
+
+  useEffect(() => {
+    confirmButtonRef.current?.focus();
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-5">
-        <h2 className="text-lg font-bold mb-1">Make Playable</h2>
+      <div
+        className="bg-gray-900 border border-gray-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-5"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="make-playable-title"
+      >
+        <h2 id="make-playable-title" className="text-lg font-bold mb-1">Make Playable</h2>
         <p className={`text-sm mb-4 ${plan.willBePlayable ? "text-green-400" : "text-yellow-400"}`}>
           {plan.willBePlayable
             ? "This will make the deck playable."
@@ -111,6 +132,7 @@ export default function MakePlayableModal({
             Cancel
           </button>
           <button
+            ref={confirmButtonRef}
             onClick={onConfirm}
             disabled={isApplying}
             className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded transition-colors disabled:opacity-50"
