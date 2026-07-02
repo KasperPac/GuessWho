@@ -14,12 +14,14 @@ import {
 } from "@/lib/supabase/db";
 import { evaluateDeck } from "@/lib/game-engine/balance";
 import { generateCharacterPrompt } from "@/lib/game-engine/prompts";
-import type { GameSet, Character, CharacterAttributes, ImageStyle, Person } from "@/types/game";
+import type { GameSet, Character, CharacterAttributes, ImageStyle, Person, MakePlayablePlan } from "@/types/game";
 import { IMAGE_STYLE_CONFIGS } from "@/lib/image-generation/styles";
 import CharacterCard from "@/components/game-sets/CharacterCard";
 import CharacterEditor from "@/components/game-sets/CharacterEditor";
 import BalanceScoreBadge from "@/components/game-sets/BalanceScoreBadge";
 import PeoplePanel from "@/components/people/PeoplePanel";
+import MakePlayableModal from "@/components/game-sets/MakePlayableModal";
+import { planMakePlayable } from "@/lib/game-engine/randomize";
 
 const ALL_IMAGE_STYLES = Object.keys(IMAGE_STYLE_CONFIGS) as ImageStyle[];
 
@@ -46,6 +48,8 @@ export default function GameSetEditorPage({
   const [generateAllProgress, setGenerateAllProgress] = useState<GenerateAllProgress | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
+  const [makePlayablePlan, setMakePlayablePlan] = useState<MakePlayablePlan | null>(null);
+  const [isApplyingPlan, setIsApplyingPlan] = useState(false);
 
   async function load() {
     const [set, chars, ppl] = await Promise.all([
@@ -225,6 +229,53 @@ export default function GameSetEditorPage({
     );
   }
 
+  function handleOpenMakePlayable() {
+    if (!gameSet) return;
+    setMakePlayablePlan(planMakePlayable(characters, gameSet));
+  }
+
+  function handleCancelMakePlayable() {
+    setMakePlayablePlan(null);
+  }
+
+  async function handleConfirmMakePlayable() {
+    if (!makePlayablePlan || !gameSet) return;
+    setIsApplyingPlan(true);
+
+    const created: Character[] = [];
+    for (const draft of makePlayablePlan.newCharacters) {
+      const char = await createCharacter({
+        gameSetId: id,
+        displayName: draft.displayName,
+        attributes: draft.attributes,
+      });
+      created.push(char);
+    }
+
+    const updatedExisting = characters.map((c) => {
+      const edit = makePlayablePlan.edits.find((e) => e.characterId === c.id);
+      if (!edit) return c;
+      const attrs = { ...c.attributes };
+      for (const change of edit.changes) attrs[change.trait] = change.to as never;
+      return { ...c, attributes: attrs };
+    });
+
+    for (const edit of makePlayablePlan.edits) {
+      const merged = updatedExisting.find((c) => c.id === edit.characterId)!;
+      await updateCharacter(edit.characterId, { attributes: merged.attributes });
+    }
+
+    const allCharacters = [...updatedExisting, ...created];
+    setCharacters(allCharacters);
+    setMakePlayablePlan(null);
+
+    await runGenerationLoop(created);
+
+    runBalance(allCharacters);
+    await saveBalanceReport(id, evaluateDeck(allCharacters));
+    setIsApplyingPlan(false);
+  }
+
   if (loading) return <p className="text-gray-500">Loading…</p>;
   if (!gameSet) return <p className="text-red-400">Game set not found.</p>;
 
@@ -272,6 +323,14 @@ export default function GameSetEditorPage({
                 className="text-sm bg-violet-700 hover:bg-violet-600 text-white px-3 py-1.5 rounded transition-colors"
               >
                 Generate All
+              </button>
+            )}
+            {isPlayable === false && (
+              <button
+                onClick={handleOpenMakePlayable}
+                className="text-sm bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded transition-colors"
+              >
+                Make Playable
               </button>
             )}
             {characters.length < 24 && (
@@ -372,6 +431,15 @@ export default function GameSetEditorPage({
           />
         )}
       </div>
+
+      {makePlayablePlan && (
+        <MakePlayableModal
+          plan={makePlayablePlan}
+          onConfirm={handleConfirmMakePlayable}
+          onCancel={handleCancelMakePlayable}
+          isApplying={isApplyingPlan}
+        />
+      )}
     </div>
   );
 }
