@@ -84,11 +84,11 @@ export function planNewCharacters(characters: Character[], gameSet: GameSet): Ch
     const displayName = pickRandomName(gameSet.theme, takenNames);
     takenNames.add(displayName);
 
-    const attributes: Record<string, string> = {};
+    const attributes: Partial<CharacterAttributes> = {};
     for (const trait of GAMEPLAY_TRAITS) {
       const counts = runningCounts.get(trait)!;
       const value = pickWeightedValue(trait, gameSet, counts);
-      attributes[trait] = value;
+      (attributes as Record<string, string>)[trait] = value;
       counts.set(value, (counts.get(value) ?? 0) + 1);
     }
 
@@ -96,7 +96,7 @@ export function planNewCharacters(characters: Character[], gameSet: GameSet): Ch
       gameSetId: gameSet.id,
       displayName,
       referenceImageUrls: [],
-      attributes: attributes as unknown as CharacterAttributes,
+      attributes: attributes as CharacterAttributes,
     });
   }
 
