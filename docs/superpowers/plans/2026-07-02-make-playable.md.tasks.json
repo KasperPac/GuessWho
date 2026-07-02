@@ -10,41 +10,41 @@
     {
       "id": 2,
       "subject": "Task 2: Random character generation (planNewCharacters)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [1],
       "description": "**Goal:** A pure function that drafts theme-legal, balance-aware random characters to fill empty deck slots.\n\n**Files:**\n- Create: `src/lib/game-engine/randomize.ts` (planNewCharacters + shared helpers)\n- Modify: `src/types/game.ts` — add CharacterDraft\n- Test: `src/__tests__/randomize.test.ts`\n\n**Acceptance Criteria:**\n- Returns [] when deck already has 24 characters.\n- Returns exactly 24 - characters.length drafts otherwise.\n- Every draft has all 11 GAMEPLAY_TRAITS defined.\n- outfitType/accessory always theme-legal.\n- No draft reuses an existing displayName.\n- Drafts have referenceImageUrls: [] and no personId.\n\n**Verify:** `node node_modules/jest/bin/jest.js src/__tests__/randomize.test.ts`\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 2.\n\n```json:metadata\n{\"files\": [\"src/lib/game-engine/randomize.ts\", \"src/types/game.ts\", \"src/__tests__/randomize.test.ts\"], \"verifyCommand\": \"node node_modules/jest/bin/jest.js src/__tests__/randomize.test.ts\", \"acceptanceCriteria\": [\"Returns [] when deck already has 24 characters\", \"Returns exactly 24-N drafts otherwise\", \"Every draft has all GAMEPLAY_TRAITS defined\", \"outfitType/accessory theme-legal\", \"No draft reuses existing displayName\"]}\n```"
     },
     {
       "id": 3,
       "subject": "Task 3: Duplicate resolution (resolveDuplicates)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [2],
       "description": "**Goal:** Resolve critical-similarity pairs among combined (existing + drafted) 24 characters by mutating only accessory/hat/glasses/outfitType/topColor, preferring drafted characters as mutation target, reporting unresolved collisions.\n\n**Files:**\n- Modify: `src/lib/game-engine/randomize.ts` (append resolveDuplicates)\n- Modify: `src/types/game.ts` — add CharacterEdit\n- Test: `src/__tests__/randomize.test.ts` (append)\n\n**Acceptance Criteria:**\n- Two identical existing characters resolved via MUTABLE_TRAITS-only edits.\n- facialHair/hair/eyeColor/expression never changed.\n- Draft preferred as mutation target when pair includes both.\n- No-collision deck produces no edits/unresolved.\n\n**Verify:** `node node_modules/jest/bin/jest.js src/__tests__/randomize.test.ts`\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 3.\n\n```json:metadata\n{\"files\": [\"src/lib/game-engine/randomize.ts\", \"src/types/game.ts\", \"src/__tests__/randomize.test.ts\"], \"verifyCommand\": \"node node_modules/jest/bin/jest.js src/__tests__/randomize.test.ts\", \"acceptanceCriteria\": [\"Identical existing chars resolved via mutable-trait-only edits\", \"facialHair/hair/eyeColor/expression never changed\", \"Draft preferred as mutation target\", \"No-collision deck untouched\"]}\n```"
     },
     {
       "id": 4,
       "subject": "Task 4: Combine into planMakePlayable",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [3],
       "description": "**Goal:** Single entry point that drafts fill-ins, resolves collisions across the projected full 24, and reports whether the result would be playable.\n\n**Files:**\n- Modify: `src/lib/game-engine/randomize.ts` (append planMakePlayable)\n- Modify: `src/types/game.ts` — add MakePlayablePlan\n- Test: `src/__tests__/randomize.test.ts` (append)\n\n**Acceptance Criteria:**\n- newCharacters.length + characters.length === 24 after planning.\n- willBePlayable is boolean reflecting evaluateDeck() on projected final 24.\n- Deck already at 24 with no edits needed returns newCharacters: [].\n- Deliberately duplicated deck produces at least one edit.\n\n**Verify:** `node node_modules/jest/bin/jest.js src/__tests__/randomize.test.ts` then full suite `node node_modules/jest/bin/jest.js`\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 4.\n\n```json:metadata\n{\"files\": [\"src/lib/game-engine/randomize.ts\", \"src/types/game.ts\", \"src/__tests__/randomize.test.ts\"], \"verifyCommand\": \"node node_modules/jest/bin/jest.js\", \"acceptanceCriteria\": [\"newCharacters.length + characters.length === 24\", \"willBePlayable is boolean from evaluateDeck\", \"Deck at 24 with no edits returns empty newCharacters\", \"Duplicated deck produces edits\"]}\n```"
     },
     {
       "id": 5,
       "subject": "Task 5: Text-only image generation for photo-less characters",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Let /api/characters/[id]/generate and GeminiImageProvider produce an image for a character with no reference photo, via a text-only prompt with forced attribute overrides.\n\n**Files:**\n- Modify: `src/lib/image-generation/GeminiImageProvider.ts:11-53`\n- Modify: `src/app/api/characters/[id]/generate/route.ts:71-77`\n- Modify: `src/lib/game-engine/prompts.ts:201-327` (generateImagePrompt)\n- Test: `src/__tests__/GeminiImageProvider.test.ts` (new)\n- Test: `src/__tests__/prompts.test.ts` (append)\n\n**Acceptance Criteria:**\n- generateImage(prompt, []) no longer throws; sends only text part.\n- generateImage(prompt, [url]) behavior unchanged.\n- Generate API route no longer 400s on no reference photos.\n- generateImagePrompt forces physical overrides + omits \"attached photo\" line when no photo.\n- generateImagePrompt unchanged when photo present.\n\n**Verify:** `node node_modules/jest/bin/jest.js src/__tests__/GeminiImageProvider.test.ts src/__tests__/prompts.test.ts` then full suite.\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 5.\n\n```json:metadata\n{\"files\": [\"src/lib/image-generation/GeminiImageProvider.ts\", \"src/app/api/characters/[id]/generate/route.ts\", \"src/lib/game-engine/prompts.ts\", \"src/__tests__/GeminiImageProvider.test.ts\", \"src/__tests__/prompts.test.ts\"], \"verifyCommand\": \"node node_modules/jest/bin/jest.js\", \"acceptanceCriteria\": [\"generateImage([]) does not throw, sends text-only part\", \"generateImage with photo unchanged\", \"route no longer 400s on empty referenceImageUrls\", \"prompt forces overrides and omits attached-photo line when no photo\"]}\n```"
     },
     {
       "id": 6,
       "subject": "Task 6: MakePlayableModal component",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [4],
       "description": "**Goal:** A preview modal that renders a MakePlayablePlan and lets the user confirm or cancel.\n\n**Files:**\n- Create: `src/components/game-sets/MakePlayableModal.tsx`\n\n**Acceptance Criteria:**\n- Headline reflects plan.willBePlayable and plan.unresolved.length.\n- Lists every drafted new character with name + non-\"none\" attribute values.\n- Lists every edit with trait: from -> to per change, grouped by character.\n- Lists unresolved warnings when present.\n- Confirm/Cancel call onConfirm/onCancel; disabled while isApplying.\n\n**Verify:** No automated test (no component test harness in this codebase). `npx tsc --noEmit` for typecheck; visual check in Task 7.\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 6.\n\n```json:metadata\n{\"files\": [\"src/components/game-sets/MakePlayableModal.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Headline reflects willBePlayable/unresolved count\", \"Lists new characters with attribute chips\", \"Lists edits with from->to\", \"Lists unresolved warnings\", \"Confirm/Cancel wired and disabled while applying\"]}\n```"
     },
     {
       "id": 7,
       "subject": "Task 7: Wire Make Playable into game set editor page",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [4, 5, 6],
       "description": "**Goal:** Add the \"Make Playable\" button, plan state, and confirm handler to src/app/game-sets/[id]/page.tsx, persisting the plan and generating images for new characters.\n\n**Files:**\n- Modify: `src/app/game-sets/[id]/page.tsx`\n\n**Acceptance Criteria:**\n- Button appears in header row only when isPlayable === false.\n- Clicking computes and shows MakePlayableModal with current plan.\n- Cancel closes modal with no side effects.\n- Confirm creates new characters, applies edits, runs generation loop for new characters, re-evaluates and saves balance report, closes modal.\n\n**Verify:** Manual — `npm run dev`, open a game set with <24 characters, click Make Playable, verify preview, confirm, verify grid reaches 24 and balance badge updates. Then full test suite `node node_modules/jest/bin/jest.js`.\n\nSee full task detail (code included) in docs/superpowers/plans/2026-07-02-make-playable.md, Task 7.\n\n```json:metadata\n{\"files\": [\"src/app/game-sets/[id]/page.tsx\"], \"verifyCommand\": \"node node_modules/jest/bin/jest.js\", \"acceptanceCriteria\": [\"Button shown only when not playable\", \"Modal opens with correct plan\", \"Cancel is a no-op\", \"Confirm persists new chars + edits + runs generation + updates balance\"]}\n```"
     }
